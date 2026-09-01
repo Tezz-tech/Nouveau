@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #fafaf7;
+  --paper-2: #f0efea;
+  --ink: #0e1c2b;
+  --slate: #5c6e7e;
+  --navy: #0f2740;
+  --navy-deep: #081726;
+  --navy-line: #1d3e5c;
+  --gold: #c9a227;
+  --gold-light: #e6ce8f;
+  --gold-deep: #8a6d1c;
+
+  --font-fraunces: "Fraunces", ui-serif, Georgia, serif;
+  --font-archivo: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-plex-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --ease-house: cubic-bezier(0.22, 1, 0.36, 1);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: auto;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-archivo);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-fraunces);
+  font-optical-sizing: auto;
+  font-variation-settings: "wonk" 0;
+  font-weight: 400;
+}
+
+.font-mono-figure {
+  font-family: var(--font-plex-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--gold-deep);
+  color: var(--paper);
+}
+
+/* Focus rings: gold-deep on light surfaces (paper/paper-2), gold on dark surfaces (navy/navy-deep). */
+:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+.on-dark :focus-visible,
+.on-dark :focus-visible * {
+  outline-color: var(--gold);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
