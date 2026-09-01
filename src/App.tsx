@@ -5,8 +5,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import PageWipe from "@/components/PageWipe";
 import ScrollToTop from "@/components/ScrollToTop";
 import Home from "@/pages/Home";
-import HowItWorks from "@/pages/HowItWorks";
-import Pricing from "@/pages/Pricing";
+import Services from "@/pages/Services";
 import About from "@/pages/About";
 import Support from "@/pages/Support";
 import Login from "@/pages/Login";
@@ -28,8 +27,7 @@ export default function App() {
       <main id="main">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/services" element={<Services />} />
           <Route path="/about" element={<About />} />
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />

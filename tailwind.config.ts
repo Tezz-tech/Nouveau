@@ -9,6 +9,7 @@ const config: Config = {
         "paper-2": "#F0EFEA",
         ink: "#0E1C2B",
         slate: "#5C6E7E",
+        "slate-light": "#8B98A2",
         navy: "#0F2740",
         "navy-deep": "#081726",
         "navy-line": "#1D3E5C",
@@ -17,9 +18,9 @@ const config: Config = {
         "gold-deep": "#8A6D1C",
       },
       fontFamily: {
-        display: ["var(--font-fraunces)", "serif"],
-        text: ["var(--font-archivo)", "sans-serif"],
-        mono: ["var(--font-plex-mono)", "monospace"],
+        display: ["var(--font-display)", "sans-serif"],
+        text: ["var(--font-text)", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
       },
       fontSize: {
         h1: ["clamp(46px, 6vw, 84px)", { lineHeight: "0.98", letterSpacing: "-0.03em" }],

@@ -1,18 +1,16 @@
 export const site = {
   name: "Nouveau",
-  defaultTitle: "Nouveau — Half of every deposit never enters the market",
+  defaultTitle: "Nouveau — Elite Trading Infrastructure for Capital Growth",
   defaultDescription:
-    "Nouveau splits every deposit in two. Half is held in reserve, untouched by the market. Half is traded. The reserve is the product.",
+    "Professional trading. Structured risk. Measurable results. Nouveau is a trading firm built for capital holders and serious traders.",
   url: "https://nouveau.example",
-  minimumDeposit: 20,
 };
 
 export type NavLink = { label: string; to: string };
 
 export const primaryNav: NavLink[] = [
   { label: "Home", to: "/" },
-  { label: "How it works", to: "/how-it-works" },
-  { label: "Pricing", to: "/pricing" },
+  { label: "Services", to: "/services" },
   { label: "About", to: "/about" },
   { label: "Support", to: "/support" },
 ];
@@ -21,8 +19,8 @@ export const footerColumns: { heading: string; links: NavLink[] }[] = [
   {
     heading: "Platform",
     links: [
-      { label: "How it works", to: "/how-it-works" },
-      { label: "Pricing", to: "/pricing" },
+      { label: "Services", to: "/services" },
+      { label: "About", to: "/about" },
       { label: "Open an account", to: "/signup" },
       { label: "Log in", to: "/login" },
     ],
@@ -40,7 +38,7 @@ export const footerColumns: { heading: string; links: NavLink[] }[] = [
     links: [
       { label: "Terms of service", to: "#" },
       { label: "Privacy policy", to: "#" },
-      { label: "Cookie policy", to: "#" },
+      { label: "Risk disclosure", to: "#" },
     ],
   },
   {
@@ -54,4 +52,4 @@ export const footerColumns: { heading: string; links: NavLink[] }[] = [
 ];
 
 export const riskDisclosure =
-  "Nouveau splits every deposit in two. Half is held in a separate reserve account and is never traded. Half is traded by an automated strategy and carries real risk: in the worst case, the traded half can be lost in full. A subscription fee applies regardless of trading outcome and is not refunded if a cycle closes down. Past performance of a strategy, including any figures shown on this site, does not guarantee future results. Nouveau is not a bank and deposits are not insured. Only deposit money you can afford to lose in full.";
+  "Trading and capital allocation carry risk. Nouveau's systems are built to manage that risk through structure, drawdown controls, and disciplined execution — not to eliminate it. Past performance does not guarantee future results, and returns are never guaranteed on any product. Only allocate capital you are prepared to see fluctuate. Nouveau is not a bank and deposits are not insured.";

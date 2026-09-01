@@ -2,18 +2,17 @@ import { motion } from "framer-motion";
 import Seo from "@/components/Seo";
 import Container from "@/components/ui/Container";
 import Figure from "@/components/ui/Figure";
-import Parallax from "@/components/motion/Parallax";
+import Glow from "@/components/ui/Glow";
+import Icon from "@/components/ui/Icon";
 import Hairline from "@/components/motion/Hairline";
 import { softAppear, settleFromLeft, staggerContainer, viewportOnce } from "@/lib/motion";
 import {
   aboutIntro,
-  foundingStory,
-  reserveMechanic,
-  businessModel,
-  aiAccountability,
+  ourPrinciples,
+  whyNouveau,
   pullQuote,
+  capabilities,
   people,
-  officeImage,
 } from "@/content/about";
 
 export default function About() {
@@ -21,38 +20,40 @@ export default function About() {
     <>
       <Seo
         title="About"
-        description="Why Nouveau splits every deposit in two, how the company makes money, and who's accountable when AI drafts a strategy."
+        description="Nouveau bridges the gap between capital and professional trading execution — systems, structure, and transparency."
         path="/about"
       />
 
-      <header className="bg-paper-2 pb-16 pt-36 md:pt-44">
+      <header className="on-dark relative overflow-hidden bg-navy-deep pb-20 pt-36 md:pt-44">
+        <Glow tone="gold" size={520} className="-right-32 -top-32" />
         <Container>
-          <h1 className="max-w-2xl font-display text-h1 text-ink">
+          <span className="text-caption uppercase tracking-[0.08em] text-gold-light">
+            {aboutIntro.eyebrow}
+          </span>
+          <h1 className="mt-4 max-w-3xl font-display text-h1 text-paper">
             {aboutIntro.heading}
           </h1>
+          <p className="mt-6 max-w-measure text-body text-paper/80">
+            {aboutIntro.body}
+          </p>
         </Container>
       </header>
 
       <section className="bg-paper py-20 md:py-28">
         <Container>
-          <div className="grid gap-14 md:grid-cols-12">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={viewportOnce}
-              variants={softAppear}
-              className="md:col-span-6"
-            >
-              {foundingStory.map((p) => (
-                <p key={p} className="mt-5 max-w-measure text-body text-slate first:mt-0">
-                  {p}
-                </p>
-              ))}
-            </motion.div>
-            <Parallax className="h-72 md:col-span-5 md:col-start-8 md:h-auto">
-              <Figure src={officeImage.src} alt={officeImage.alt} className="h-full w-full" />
-            </Parallax>
-          </div>
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={staggerContainer(0.09)}
+            className="grid gap-6 sm:grid-cols-2 md:grid-cols-4"
+          >
+            {ourPrinciples.items.map((p, i) => (
+              <motion.div key={p} custom={i} variants={settleFromLeft} className="border-l-2 border-gold-deep pl-5">
+                <p className="font-display text-h3 text-ink">{p}</p>
+              </motion.div>
+            ))}
+          </motion.div>
         </Container>
       </section>
 
@@ -66,7 +67,7 @@ export default function About() {
             className="mx-auto max-w-3xl text-center"
           >
             <Hairline tone="light" className="mx-auto w-16" />
-            <p className="mt-8 font-display text-h2 text-ink">“{pullQuote}”</p>
+            <p className="mt-8 font-display text-h2 text-ink">&ldquo;{pullQuote}&rdquo;</p>
             <Hairline tone="light" className="mx-auto mt-8 w-16" />
           </motion.div>
         </Container>
@@ -80,36 +81,50 @@ export default function About() {
               whileInView="visible"
               viewport={viewportOnce}
               variants={softAppear}
-              className="md:col-span-6"
+              className="md:col-span-5"
             >
-              <h2 className="font-display text-h2 text-ink">
-                The reserve mechanic.
-              </h2>
-              {reserveMechanic.map((p) => (
-                <p key={p} className="mt-5 max-w-measure text-body text-slate">
-                  {p}
-                </p>
-              ))}
+              <span className="text-caption uppercase tracking-[0.08em] text-gold-deep">
+                {whyNouveau.heading}
+              </span>
+              <h2 className="mt-3 font-display text-h2 text-ink">{whyNouveau.eyebrow}</h2>
+              <p className="mt-5 text-body text-slate">{whyNouveau.intro}</p>
+              <ul className="mt-4 space-y-2">
+                {whyNouveau.beliefs.map((b) => (
+                  <li key={b} className="flex items-start gap-2 text-body text-slate">
+                    <span className="mt-2.5 h-1 w-1 shrink-0 bg-gold-deep" aria-hidden="true" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-5 max-w-measure text-body text-ink">{whyNouveau.closing}</p>
             </motion.div>
+
             <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={viewportOnce}
-              variants={softAppear}
-              className="md:col-span-5 md:col-start-8"
+              variants={staggerContainer(0.08)}
+              className="md:col-span-6 md:col-start-7"
             >
-              <h2 className="font-display text-h3 text-ink">
-                {businessModel.heading}
-              </h2>
-              <p className="mt-4 max-w-measure text-body text-slate">
-                {businessModel.body}
-              </p>
-              <h2 className="mt-10 font-display text-h3 text-ink">
-                {aiAccountability.heading}
-              </h2>
-              <p className="mt-4 max-w-measure text-body text-slate">
-                {aiAccountability.body}
-              </p>
+              <h2 className="mb-6 font-display text-h3 text-ink">What we've built</h2>
+              <div className="space-y-6">
+                {capabilities.map((c, i) => (
+                  <motion.div
+                    key={c.title}
+                    custom={i}
+                    variants={settleFromLeft}
+                    className="flex items-start gap-4 border-t border-navy-line/15 pt-6 first:border-t-0 first:pt-0"
+                  >
+                    <Icon name={c.icon} className="mt-1 h-6 w-6 shrink-0 text-gold-deep" />
+                    <div>
+                      <h3 className="font-display text-body font-semibold text-ink">
+                        {c.title}
+                      </h3>
+                      <p className="mt-1 text-small text-slate">{c.body}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </motion.div>
           </div>
         </Container>
@@ -134,9 +149,7 @@ export default function About() {
                   alt={person.image.alt}
                   className="aspect-[4/5] w-full"
                 />
-                <p className="mt-5 font-display text-h3 text-ink">
-                  {person.name}
-                </p>
+                <p className="mt-5 font-display text-h3 text-ink">{person.name}</p>
                 <p className="text-small text-slate">{person.role}</p>
               </motion.div>
             ))}

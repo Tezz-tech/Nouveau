@@ -1,29 +1,56 @@
 export const aboutIntro = {
-  heading: "Why we built it this way.",
+  eyebrow: "About Nouveau",
+  heading: "Bridging the Gap Between Capital and Professional Execution",
+  body: "Nouveau was created to bridge the gap between capital and professional trading execution. Many investors lack the time, skill, or discipline to trade effectively. Many traders lack the capital or infrastructure to operate at a professional level. Nouveau provides both — through systems, structure, and transparency.",
 };
 
-export const foundingStory = [
-  "Nouveau started from a specific complaint. Adaeze Nwosu had watched three friends fund accounts on platforms that promised fixed monthly returns, then watched two of those platforms disappear along with the money. The third kept paying out until, one month, it didn't.",
-  "Nothing about the mechanics was ever visible on any of them. No one could say where the money actually sat, or whether it was being traded at all. The promise was the whole product.",
+export const ourPrinciples = {
+  heading: "Our Principles",
+  items: ["Risk first", "Systems over emotion", "Measured growth", "Professional accountability"],
+};
+
+export const whyNouveau = {
+  heading: "Why Nouveau",
+  eyebrow: "This is not retail trading.",
+  intro: "Nouveau is built on the belief that:",
+  beliefs: [
+    "Capital must be protected before it is grown",
+    "Systems outperform emotions",
+    "Transparency builds long-term trust",
+  ],
+  closing: "We operate with professional standards, not marketing noise.",
+};
+
+export const pullQuote = "This is not retail trading. This is professional execution.";
+
+export type Capability = {
+  icon: "fund" | "bots" | "intelligence" | "education";
+  title: string;
+  body: string;
+};
+
+export const capabilities: Capability[] = [
+  {
+    icon: "fund",
+    title: "Fund Management",
+    body: "Live, with structured risk controls, drawdown limits, and performance tracking on every allocation.",
+  },
+  {
+    icon: "bots",
+    title: "Trading Bots",
+    body: "Scalping, day-trading, and swing-trading systems, each built for a specific market condition and risk profile.",
+  },
+  {
+    icon: "intelligence",
+    title: "Trader Intelligence Dashboard",
+    body: "Market insights, quantitative metrics, and a simulation environment, live for traders who want institutional tools.",
+  },
+  {
+    icon: "education",
+    title: "Education Platform",
+    body: "Coming soon — practical instruction in market structure, risk modeling, and system-based trading logic.",
+  },
 ];
-
-export const reserveMechanic = [
-  "The reserve mechanic is the direct response. If half of every deposit is held somewhere the trading system cannot reach, the worst a bad cycle — or a bad actor — can do is bounded. It cannot be a total loss, because half was never at risk to begin with.",
-  "That constraint shaped everything after it: the pricing, the reporting, the decision to publish the worst case above the target case on every page that mentions returns.",
-];
-
-export const businessModel = {
-  heading: "How we make money.",
-  body: "Nouveau charges a subscription — daily, weekly, or monthly — and nothing else. We do not take a percentage of gains. We do not benefit when a cycle closes down. The subscription is the entire business model, which is also why it doesn't move when your outcome does.",
-};
-
-export const aiAccountability = {
-  heading: "Where AI fits, and who answers for it.",
-  body: "An AI model researches conditions and drafts each cycle's strategy. It does not deploy itself. Femi Okafor, who leads the trading desk, reviews every draft and is the named person accountable for what goes live. If a strategy is wrong, that's a decision a person made, not an algorithm's decision.",
-};
-
-export const pullQuote =
-  "Half held, half traded. Said out loud, it sounds obvious. Almost no one actually does it.";
 
 export const people = [
   {
@@ -43,8 +70,3 @@ export const people = [
     },
   },
 ];
-
-export const officeImage = {
-  src: "/images/about-office.webp",
-  alt: "A minimal, well-lit modern office interior.",
-};

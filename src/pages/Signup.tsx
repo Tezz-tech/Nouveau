@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import Seo from "@/components/Seo";
-import Figure from "@/components/ui/Figure";
+import Glow from "@/components/ui/Glow";
 import { TextField, SelectField } from "@/components/ui/FormField";
-import { signupContent, planOptions } from "@/content/auth";
+import { signupContent, interestOptions } from "@/content/auth";
 
 export default function Signup() {
   const [acknowledged, setAcknowledged] = useState(false);
@@ -14,7 +14,7 @@ export default function Signup() {
     <>
       <Seo
         title="Open an account"
-        description="Open a Nouveau account. $20 minimum deposit, split half to reserve and half to trading."
+        description="Open a Nouveau account and choose the product that fits how you want exposure — Fund Management, Trading Bots, or Trader Intelligence."
         path="/signup"
       />
 
@@ -54,7 +54,7 @@ export default function Signup() {
                 minLength={8}
                 errorMessage="Password must be at least 8 characters."
               />
-              <SelectField label="Plan" name="plan" options={planOptions} />
+              <SelectField label="Primary interest" name="interest" options={interestOptions} />
 
               <label className="flex cursor-pointer items-start gap-3">
                 <input
@@ -115,16 +115,9 @@ export default function Signup() {
           </div>
         </div>
 
-        <div className="on-dark relative order-1 h-64 bg-navy md:order-2 md:h-auto">
-          <Figure
-            src={signupContent.panel.image.src}
-            alt={signupContent.panel.image.alt}
-            className="h-full w-full"
-          />
-          <div
-            className="absolute inset-0 bg-gradient-to-t from-navy-deep/90 via-navy-deep/30 to-transparent"
-            aria-hidden="true"
-          />
+        <div className="on-dark relative order-1 h-64 overflow-hidden bg-navy-deep md:order-2 md:h-auto">
+          <Glow tone="gold" size={520} className="-right-32 -top-32" />
+          <Glow tone="navy" size={600} className="-bottom-40 -left-40" />
           <ul className="absolute inset-x-0 bottom-0 hidden flex-col gap-3 p-10 md:flex">
             {signupContent.panel.statements.map((s) => (
               <li key={s} className="text-h3 font-display text-paper">

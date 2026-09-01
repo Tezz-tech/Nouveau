@@ -1,7 +1,8 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { LenisContext } from "@/hooks/useLenis";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -12,6 +13,7 @@ gsap.registerPlugin(ScrollTrigger);
  */
 export default function SmoothScroll({ children }: { children: ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null);
+  const [lenis, setLenis] = useState<Lenis | null>(null);
 
   useEffect(() => {
     const prefersReduced = window.matchMedia(
@@ -19,26 +21,28 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
     ).matches;
     if (prefersReduced) return;
 
-    const lenis = new Lenis({
+    const instance = new Lenis({
       lerp: 0.08,
       smoothWheel: true,
     });
-    lenisRef.current = lenis;
+    lenisRef.current = instance;
+    setLenis(instance);
 
-    lenis.on("scroll", ScrollTrigger.update);
+    instance.on("scroll", ScrollTrigger.update);
 
     const tickerFn = (time: number) => {
-      lenis.raf(time * 1000);
+      instance.raf(time * 1000);
     };
     gsap.ticker.add(tickerFn);
     gsap.ticker.lagSmoothing(0);
 
     return () => {
       gsap.ticker.remove(tickerFn);
-      lenis.destroy();
+      instance.destroy();
       lenisRef.current = null;
+      setLenis(null);
     };
   }, []);
 
-  return <>{children}</>;
+  return <LenisContext.Provider value={lenis}>{children}</LenisContext.Provider>;
 }

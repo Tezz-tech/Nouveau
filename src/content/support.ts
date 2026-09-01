@@ -2,44 +2,44 @@ export type FaqItem = { question: string; answer: string };
 
 export const supportFaq: FaqItem[] = [
   {
-    question: "How do I open an account?",
+    question: "How does Nouveau's fund management work?",
     answer:
-      "Sign up, verify your email, and deposit $20 or more. The split into reserve and traded happens automatically the moment the deposit clears.",
+      "Nouveau's fund management allows clients to allocate capital to our trading systems. Risk is managed through predefined models, drawdown controls, and performance-based structures. We operate with transparent allocation logic and structured risk management protocols.",
   },
   {
-    question: "How long does a cycle take to close?",
+    question: "What types of trading bots does Nouveau offer?",
     answer:
-      "Exactly as long as your plan: one day, one week, or one month. Cycles don't extend or shorten based on how the strategy is performing mid-cycle.",
+      "Rule-based bots tuned to specific market conditions, including scalping, day-trading, and swing-trading systems. Each executes a fixed strategy with no discretionary override, and suits traders who want exposure without watching the market themselves.",
   },
   {
-    question: "Can I withdraw before a cycle ends?",
+    question: "What is the Trader Intelligence & Simulation platform?",
     answer:
-      "The reserve, yes, at any time. The traded half is locked for the cycle so the strategy can run as designed — you'll see it at the next close.",
+      "A research and practice layer for active traders: macro and fundamental market insights, quantitative metrics, and a simulated trading environment where you can test strategies under real market conditions before any capital is at risk.",
   },
   {
-    question: "What happens to the reserve if Nouveau shuts down?",
+    question: "Do I need trading experience to use Nouveau?",
     answer:
-      "It sits in an account the trading system was never able to touch, so it isn't affected by anything that happens to our trading operations. Standard account closure and transfer procedures apply.",
+      "No. Fund Management is built for capital holders who don't trade at all. Trading Bots and the Trader Intelligence platform are for traders who want institutional-grade tools alongside their own decisions.",
   },
   {
-    question: "Is my data shared with anyone?",
+    question: "How is risk managed?",
     answer:
-      "No. Account and identity data is used to run your account and isn't sold or shared with third parties for marketing.",
+      "Through predefined models, drawdown controls, and performance-based structures, set before capital is allocated — not adjusted after the fact based on how a position is performing.",
   },
   {
-    question: "What currencies can I deposit in?",
+    question: "Can I withdraw my capital?",
     answer:
-      "USD by card or bank transfer. Other currencies are converted at deposit.",
+      "Yes. Withdrawal terms are set out at the time of allocation and vary by product. Our support team can walk you through the specifics for your account.",
   },
   {
-    question: "How do I close my account entirely?",
+    question: "Is your trading strategy visible to clients?",
     answer:
-      "Withdraw the full balance at the end of a cycle and confirm closure from your account settings. There's no cancellation fee.",
+      "Allocation logic and risk controls are transparent. The underlying trading strategy itself is proprietary — true of any professional trading operation, not specific to Nouveau.",
   },
   {
-    question: "Who do I talk to about a specific trade?",
+    question: "Who is accountable for trading decisions?",
     answer:
-      "Message support with your account reference and the cycle date. Questions about strategy decisions are routed to the trading desk directly.",
+      "Every system is reviewed and governed by our trading desk, not run unsupervised. Nouveau operates with professional accountability at every stage.",
   },
 ];
 
@@ -62,8 +62,9 @@ export const contactRoutes = [
 ];
 
 export const topics = [
-  "Account and deposits",
-  "A specific trade or cycle",
-  "Billing and subscriptions",
+  "Fund management",
+  "Trading bots",
+  "Trader intelligence & simulation",
+  "Account and billing",
   "Something else",
 ];

@@ -2,34 +2,31 @@ export const loginContent = {
   heading: "Log in.",
   sub: "Welcome back.",
   panel: {
-    image: {
-      src: "/images/auth-panel-login.webp",
-      alt: "Aerial view of a coastline at dusk.",
-    },
     statements: [
-      "Half held. Half traded. Both visible.",
-      "$20 minimum deposit.",
-      "Cancel anytime, effective next cycle.",
+      "Institutional-grade systems.",
+      "Risk-managed execution.",
+      "Transparent, accountable process.",
     ],
   },
 };
 
 export const signupContent = {
   heading: "Open an account.",
-  sub: "Start with what you can afford to lose.",
+  sub: "Start with structure. Trade with confidence.",
   riskAcknowledgement:
-    "I understand the traded half of my deposit can be lost in full and that no return is guaranteed.",
+    "I understand that trading and capital allocation carry risk, that returns are never guaranteed, and that I should only allocate capital I am prepared to see fluctuate.",
   panel: {
-    image: {
-      src: "/images/auth-panel-signup.webp",
-      alt: "A minimal desk with paper documents, lit from one side.",
-    },
     statements: [
-      "Reserve held in a separate account.",
-      "Worst case shown before you fund anything.",
+      "Structured risk management on every allocation.",
+      "Systems reviewed and governed by our trading desk.",
       "No guaranteed returns, ever.",
     ],
   },
 };
 
-export const planOptions = ["Daily — $2", "Weekly — $10", "Monthly — $30"];
+export const interestOptions = [
+  "Fund Management",
+  "Trading Bots",
+  "Trader Intelligence & Simulation",
+  "Not sure yet",
+];

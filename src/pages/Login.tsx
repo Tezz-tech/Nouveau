@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/Seo";
-import Figure from "@/components/ui/Figure";
+import Glow from "@/components/ui/Glow";
 import { TextField } from "@/components/ui/FormField";
 import { loginContent } from "@/content/auth";
 
@@ -19,7 +19,7 @@ export default function Login() {
       <div className="grid min-h-[100svh] md:grid-cols-2">
         <div className="order-2 flex items-center justify-center px-6 py-32 md:order-1 md:px-16">
           <div className="w-full max-w-sm">
-            <h1 className="font-display text-h1 text-ink" style={{ fontSize: "clamp(38px, 5vw, 56px)" }}>
+            <h1 className="font-display text-ink" style={{ fontSize: "clamp(38px, 5vw, 56px)" }}>
               {loginContent.heading}
             </h1>
             <p className="mt-3 text-body text-slate">{loginContent.sub}</p>
@@ -73,16 +73,9 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="on-dark relative order-1 h-64 bg-navy md:order-2 md:h-auto">
-          <Figure
-            src={loginContent.panel.image.src}
-            alt={loginContent.panel.image.alt}
-            className="h-full w-full"
-          />
-          <div
-            className="absolute inset-0 bg-gradient-to-t from-navy-deep/90 via-navy-deep/30 to-transparent"
-            aria-hidden="true"
-          />
+        <div className="on-dark relative order-1 h-64 overflow-hidden bg-navy-deep md:order-2 md:h-auto">
+          <Glow tone="gold" size={520} className="-right-32 -top-32" />
+          <Glow tone="navy" size={600} className="-bottom-40 -left-40" />
           <ul className="absolute inset-x-0 bottom-0 hidden flex-col gap-3 p-10 md:flex">
             {loginContent.panel.statements.map((s) => (
               <li key={s} className="text-h3 font-display text-paper">

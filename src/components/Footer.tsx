@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-4">
           {footerColumns.map((col) => (
             <div key={col.heading}>
-              <h2 className="mb-5 font-text text-caption uppercase tracking-[0.08em] text-slate">
+              <h2 className="mb-5 font-text text-caption uppercase tracking-[0.08em] text-slate-light">
                 {col.heading}
               </h2>
               <ul className="space-y-3">
@@ -32,12 +32,12 @@ export default function Footer() {
 
         <div className="mt-10 flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <span className="font-display text-h3 text-paper">Nouveau</span>
-          <p className="max-w-measure text-caption text-slate">
+          <p className="max-w-measure text-caption text-slate-light">
             {riskDisclosure}
           </p>
         </div>
 
-        <p className="mt-10 text-caption text-slate">
+        <p className="mt-10 text-caption text-slate-light">
           © {new Date().getFullYear()} Nouveau. This site is a design
           demonstration; no forms submit and no accounts are created.
         </p>
