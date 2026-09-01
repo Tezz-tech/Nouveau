@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { primaryNav } from "@/content/site";
 import MobileDrawer from "@/components/MobileDrawer";
+import { LogoLockup } from "@/components/ui/Logo";
 
 export default function Header() {
   const location = useLocation();
@@ -41,14 +42,8 @@ export default function Header() {
       )}
     >
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 md:px-10">
-        <Link
-          to="/"
-          className={clsx(
-            "font-display text-h3 transition-colors duration-500",
-            transparent ? "text-paper" : "text-ink"
-          )}
-        >
-          Nouveau
+        <Link to="/" aria-label="Nouveau — home">
+          <LogoLockup tone={transparent ? "dark" : "light"} />
         </Link>
 
         <nav

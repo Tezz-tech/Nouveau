@@ -125,6 +125,28 @@ currencies, which is a factual claim that shouldn't be invented. Add it
 back (e.g. a new section in `home.ts` plus a small marquee or grid
 component) once you have the real list.
 
+## Logo
+
+`src/components/ui/Logo.tsx` exports three variants, all built from the
+client-supplied logo file (`public/images/logo-mark.png` — the gold icon,
+cropped tight; `public/images/logo-full.png` — icon + cream "NOUVEAU"
+wordmark, cropped tight; `public/favicon.png` — the icon, squared and
+downsized):
+
+- `LogoMark` — icon only, transparent, works on any surface.
+- `LogoLockup` — icon image + **live** "Nouveau" text (`tone: "light" |
+  "dark"` controls the text color). Used in the header, which toggles
+  between a light and dark surface — the source file's wordmark is baked
+  in as cream/white pixels and is only legible on a dark surface, so this
+  variant re-renders the wordmark as real, color-adaptive text instead.
+- `LogoFull` — the raw raster lockup, icon and wordmark together. Only use
+  this where the background is guaranteed dark (`navy`/`navy-deep`) —
+  currently the footer, the mobile drawer, and the Login/Signup dark side
+  panels. If you place it near the top of a page, keep it clear of the
+  fixed header's ~84px height (`top-28` or more) — the header is
+  `position: fixed` with `z-50` and will silently paint over anything
+  positioned underneath it.
+
 ## Motion system
 
 `src/lib/motion.ts` centralises the easing curve

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { primaryNav } from "@/content/site";
 import { houseTransition } from "@/lib/motion";
+import { LogoFull } from "@/components/ui/Logo";
 
 export default function MobileDrawer({
   open,
@@ -56,12 +57,8 @@ export default function MobileDrawer({
           ref={panelRef}
         >
           <div className="flex items-center justify-between px-6 py-6">
-            <Link
-              to="/"
-              className="font-display text-h3 text-paper"
-              onClick={onClose}
-            >
-              Nouveau
+            <Link to="/" aria-label="Nouveau — home" onClick={onClose}>
+              <LogoFull className="h-9" />
             </Link>
             <button
               type="button"

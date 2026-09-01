@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/Seo";
 import Glow from "@/components/ui/Glow";
+import { LogoFull } from "@/components/ui/Logo";
 import { TextField } from "@/components/ui/FormField";
 import { loginContent } from "@/content/auth";
 
@@ -76,6 +77,7 @@ export default function Login() {
         <div className="on-dark relative order-1 h-64 overflow-hidden bg-navy-deep md:order-2 md:h-auto">
           <Glow tone="gold" size={520} className="-right-32 -top-32" />
           <Glow tone="navy" size={600} className="-bottom-40 -left-40" />
+          <LogoFull className="absolute left-10 top-28 hidden h-10 md:block" />
           <ul className="absolute inset-x-0 bottom-0 hidden flex-col gap-3 p-10 md:flex">
             {loginContent.panel.statements.map((s) => (
               <li key={s} className="text-h3 font-display text-paper">

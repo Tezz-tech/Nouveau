@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Container from "@/components/ui/Container";
+import { LogoFull } from "@/components/ui/Logo";
 import { footerColumns, riskDisclosure } from "@/content/site";
 
 export default function Footer() {
@@ -31,7 +32,7 @@ export default function Footer() {
         <div className="mt-16 h-px w-full bg-navy-line" aria-hidden="true" />
 
         <div className="mt-10 flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-          <span className="font-display text-h3 text-paper">Nouveau</span>
+          <LogoFull className="h-16" />
           <p className="max-w-measure text-caption text-slate-light">
             {riskDisclosure}
           </p>
