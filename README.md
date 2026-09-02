@@ -69,12 +69,12 @@ currently point at the placeholder `https://nouveau.example`.
 src/
   components/       shared components (Header, Footer, MobileDrawer, SmoothScroll, ScrollToTop, PageWipe, Seo)
     motion/          motion primitives (RevealLines, Hairline)
-    ui/              design-system primitives (Button, Container, Accordion, form fields, Figure, Icon, Glow)
+    ui/              design-system primitives (Button, Container, Accordion, form fields, Icon, Glow)
   content/           all page copy, as typed objects — see "Editing copy" below
   lib/motion.ts      centralised motion variants, easing, durations, stagger values
   pages/             one file per route: Home, Services, About, Support, Login, Signup, NotFound
 public/
-  images/            the two About-page portraits + CREDITS.md documenting their source
+  images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
 .mcp.json            21st.dev MCP server config (url only — no secret; see below)
 .env                 gitignored — holds TWENTYFIRST_API_KEY referenced by .mcp.json
 ```
@@ -160,9 +160,14 @@ energy — navy/gold only, low opacity, never a rainbow gradient.
 
 ## Images
 
-Only the two About-page team portraits remain (`public/images/`), sourced
-from Unsplash/Pexels — see `CREDITS.md`. The rest of the site's visual
-system is icon- and glow-shape-driven rather than photography-driven.
+There's no photography on the site at all now — the last remaining use (two
+About-page team portraits) was removed along with the "people accountable"
+section. The visual system is entirely icon- (`lucide-react`, via
+`src/components/ui/Icon.tsx`) and glow-shape-driven
+(`src/components/ui/Glow.tsx`). If photography comes back later, re-add a
+`Figure`-style component with the same consistent-grade treatment described
+in earlier project history, and a `CREDITS.md` documenting each source
+(Unsplash/Pexels only, per the original brief).
 
 ## 21st.dev MCP server
 

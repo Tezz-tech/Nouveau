@@ -51,22 +51,3 @@ export const capabilities: Capability[] = [
     body: "Coming soon — practical instruction in market structure, risk modeling, and system-based trading logic.",
   },
 ];
-
-export const people = [
-  {
-    name: "Adaeze Nwosu",
-    role: "Founder",
-    image: {
-      src: "/images/about-portrait-1.webp",
-      alt: "Portrait of Adaeze Nwosu, founder of Nouveau, in natural light.",
-    },
-  },
-  {
-    name: "Femi Okafor",
-    role: "Head of Trading",
-    image: {
-      src: "/images/about-portrait-2.webp",
-      alt: "Portrait of Femi Okafor, head of trading at Nouveau, in natural light.",
-    },
-  },
-];

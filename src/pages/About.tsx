@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import Seo from "@/components/Seo";
 import Container from "@/components/ui/Container";
-import Figure from "@/components/ui/Figure";
 import Glow from "@/components/ui/Glow";
 import Icon from "@/components/ui/Icon";
 import Hairline from "@/components/motion/Hairline";
@@ -12,7 +11,6 @@ import {
   whyNouveau,
   pullQuote,
   capabilities,
-  people,
 } from "@/content/about";
 
 export default function About() {
@@ -127,33 +125,6 @@ export default function About() {
               </div>
             </motion.div>
           </div>
-        </Container>
-      </section>
-
-      <section className="bg-paper-2 py-20 md:py-28">
-        <Container>
-          <h2 className="mb-12 font-display text-h2 text-ink">
-            The people accountable.
-          </h2>
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={viewportOnce}
-            variants={staggerContainer(0.09)}
-            className="grid gap-10 sm:grid-cols-2 md:gap-16"
-          >
-            {people.map((person, i) => (
-              <motion.div key={person.name} custom={i} variants={settleFromLeft}>
-                <Figure
-                  src={person.image.src}
-                  alt={person.image.alt}
-                  className="aspect-[4/5] w-full"
-                />
-                <p className="mt-5 font-display text-h3 text-ink">{person.name}</p>
-                <p className="text-small text-slate">{person.role}</p>
-              </motion.div>
-            ))}
-          </motion.div>
         </Container>
       </section>
     </>
