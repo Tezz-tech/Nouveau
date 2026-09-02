@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Menu } from "lucide-react";
 import clsx from "clsx";
 import { primaryNav } from "@/content/site";
 import MobileDrawer from "@/components/MobileDrawer";
@@ -34,6 +35,7 @@ export default function Header() {
 
   return (
     <header
+      data-lenis-prevent
       className={clsx(
         "fixed inset-x-0 top-0 z-50 transition-colors duration-500 ease-house",
         transparent
@@ -96,14 +98,15 @@ export default function Header() {
 
         <button
           type="button"
+          style={{ touchAction: "manipulation" }}
           className={clsx(
-            "text-small md:hidden",
+            "-mr-2 p-2 md:hidden",
             transparent ? "text-paper" : "text-ink"
           )}
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
         >
-          Menu
+          <Menu className="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
 

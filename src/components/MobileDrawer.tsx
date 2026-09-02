@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
+import { X } from "lucide-react";
 import { primaryNav } from "@/content/site";
 import { houseTransition } from "@/lib/motion";
 import { LogoFull } from "@/components/ui/Logo";
+import { useLenis } from "@/hooks/useLenis";
 
 export default function MobileDrawer({
   open,
@@ -15,18 +17,22 @@ export default function MobileDrawer({
   const location = useLocation();
   const panelRef = useRef<HTMLDivElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
+  const lenis = useLenis();
 
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      lenis?.stop();
       firstLinkRef.current?.focus();
     } else {
       document.body.style.overflow = "";
+      lenis?.start();
     }
     return () => {
       document.body.style.overflow = "";
+      lenis?.start();
     };
-  }, [open]);
+  }, [open, lenis]);
 
   useEffect(() => {
     onClose();
@@ -46,6 +52,7 @@ export default function MobileDrawer({
     <AnimatePresence>
       {open && (
         <motion.div
+          data-lenis-prevent
           className="on-dark fixed inset-0 z-[70] flex flex-col bg-navy-deep"
           initial={{ clipPath: "inset(0 0 100% 0)" }}
           animate={{ clipPath: "inset(0 0 0% 0)" }}
@@ -62,11 +69,12 @@ export default function MobileDrawer({
             </Link>
             <button
               type="button"
+              style={{ touchAction: "manipulation" }}
               onClick={onClose}
-              className="text-small text-gold-light"
+              className="-mr-2 p-2 text-gold-light"
               aria-label="Close menu"
             >
-              Close
+              <X className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
           <nav className="flex flex-1 flex-col justify-center gap-2 px-6">
