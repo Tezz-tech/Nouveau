@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p api/tsconfig.json"
+    "typecheck": "tsc --noEmit",
+    "vercel-build": "esbuild src/vercelHandler.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/index.js --external:express --external:express-session --external:connect-mongo --external:express-rate-limit --external:cors --external:zod --external:dotenv --external:mongoose --external:argon2"
   },
   "dependencies": {
     "@nouveau/core": "0.1.0",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "typescript": "5.6.3",
     "tsx": "4.19.2",
+    "esbuild": "0.21.5",
     "vitest": "2.1.4",
     "supertest": "7.0.0",
     "mongodb-memory-server": "10.1.2",

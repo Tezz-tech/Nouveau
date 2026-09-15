@@ -68,22 +68,44 @@ doesn't fit a serverless platform as naturally as a traditional
 always-running host — but it's set up to work on Vercel since that's where
 the client's project already lives.
 
-- **`api/index.ts`** is the actual Vercel entrypoint (their serverless-
-  function convention: a file under `api/` exporting a default
-  `(req, res)` handler). It never calls `app.listen()` — Vercel owns the
-  HTTP listening — and it shares `buildApiApp()` with `server.ts` so the
-  two entrypoints can't drift on which adapters get used. `vercel.json`
-  rewrites every path to it, since this API has no `/api` prefix
-  convention of its own.
-- **Why `api/index.ts` exists at all**: pointing Vercel at `src/server.ts`
-  or `src/app.ts` directly fails at runtime with
-  `ERR_MODULE_NOT_FOUND` — Vercel's zero-config Node handling transpiles
-  arbitrary source files one at a time without bundling, and Node's ESM
-  loader then can't resolve this codebase's extensionless relative
-  imports (`./config/env`, not `./config/env.js`). A file under `api/`
-  goes through Vercel's proper, bundled Node builder instead, which
-  resolves them correctly. This only shows up once actually deployed —
-  local dev (`tsx`) and `tsc --noEmit` both tolerate the same imports.
+- **`src/vercelHandler.ts`** is the source for Vercel's entrypoint (their
+  serverless-function convention: a default `(req, res)` handler). It
+  never calls `app.listen()` — Vercel owns the HTTP listening — and shares
+  `buildApiApp()` with `server.ts` so the two entrypoints can't drift on
+  which adapters get used.
+- **It gets bundled, not deployed as-is.** The `vercel-build` script (npm
+  auto-detects and runs this — no extra Vercel config needed) runs esbuild
+  against it, producing `api/index.js` — the file Vercel's serverless
+  convention actually picks up. `api/` itself is gitignored; it's
+  generated fresh on every build. `vercel.json`'s rewrite sends every path
+  to it, since this API has no `/api` prefix convention of its own.
+- **Why bundling is necessary at all** — two layered problems, in the
+  order they were actually hit in production:
+  1. Pointing Vercel at TypeScript source directly (`src/server.ts` or an
+     unbundled `api/index.ts`) crashes at runtime with
+     `ERR_MODULE_NOT_FOUND` on `./config/env` — Vercel's zero-config Node
+     handling can transpile a source file one at a time without bundling,
+     and Node's own ESM loader then can't resolve this codebase's
+     extensionless relative imports.
+  2. Even bundled by Vercel's own builder, `@nouveau/core`/`db`/`security`
+     get left as external `node_modules` requires rather than inlined,
+     since they're resolved as ordinary bare-specifier packages. Those
+     packages have no compiled output — their `package.json` "main"
+     points straight at TypeScript source — so at runtime Node fails with
+     `Cannot find package '.../node_modules/@nouveau/db/src/index.ts'`.
+  Both failures are invisible locally: `tsx` (dev) and `tsc --noEmit`
+  both tolerate the same imports, and the test suite never runs the
+  deployed artifact. Running our own esbuild bundle — with only genuine
+  third-party npm packages (`express`, `mongoose`, `argon2`, etc.; see the
+  `--external` flags in `package.json`) left unbundled — sidesteps both at
+  once, since the output is one self-contained file with no remaining
+  imports of anything that isn't a real, properly-published npm package.
+  **Before trusting any change here, run `npm run vercel-build -w
+  @nouveau/api` then `node scripts/smokeTestBundle.mjs`** (from
+  `apps/api/`) and hit `http://localhost:4001/health` — this is the only
+  way to catch a bundling regression before it reaches production, since
+  none of the other test/build commands actually execute the deployed
+  artifact.
 - **`public/index.html`** is a trivial placeholder, not a real page — this
   is a functions-only API with no frontend of its own, but Vercel's build
   still expects a static output directory to exist and fails the whole
@@ -101,13 +123,11 @@ the client's project already lives.
   `config/env.ts`) or login will silently fail for real users.
 - **If this ever moves off Vercel** to a traditional host (Render,
   Railway, a VPS): `npm run build && npm start` (plain `tsc` +
-  `node dist/server.js`) is untested end-to-end and likely has the same
-  underlying problem `api/index.ts` works around, since the workspace
-  packages (`@nouveau/core`/`db`/`security`) are consumed as raw
-  TypeScript source via npm workspace symlinks, which plain `node` can't
-  execute — bundling `server.ts` (e.g. with esbuild) rather than a bare
-  `tsc` build would be the fix, mirroring what `api/index.ts` gets for
-  free from Vercel's own bundler.
+  `node dist/server.js`) is untested end-to-end and has the exact second
+  problem described above — `server.ts` would need the same esbuild
+  bundling treatment `vercelHandler.ts` already gets (bundle `server.ts`
+  itself, keep only real npm packages external, still call
+  `app.listen()`) rather than a bare `tsc` build.
 
 ## Assumptions flagged
 
