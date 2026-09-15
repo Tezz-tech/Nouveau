@@ -1,8 +1,6 @@
 import { connectToDatabase } from "@nouveau/db";
 import { getEnv } from "./config/env";
-import { createApp } from "./app";
-import { getEmailAdapter } from "./adapters/email/provider";
-import { SimulatorKycAdapter } from "./adapters/kyc/SimulatorKycAdapter";
+import { buildApiApp } from "./buildApiApp";
 
 async function main() {
   const env = getEnv();
@@ -18,11 +16,7 @@ async function main() {
 
   await connectToDatabase(env.MONGODB_URI);
 
-  const app = createApp({
-    emailAdapter: getEmailAdapter(),
-    kycAdapter: new SimulatorKycAdapter(),
-    appBaseUrl: env.CORS_ORIGIN,
-  });
+  const app = buildApiApp();
 
   app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
