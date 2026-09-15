@@ -84,6 +84,14 @@ the client's project already lives.
   goes through Vercel's proper, bundled Node builder instead, which
   resolves them correctly. This only shows up once actually deployed —
   local dev (`tsx`) and `tsc --noEmit` both tolerate the same imports.
+- **`public/index.html`** is a trivial placeholder, not a real page — this
+  is a functions-only API with no frontend of its own, but Vercel's build
+  still expects a static output directory to exist and fails the whole
+  build ("No Output Directory named 'public' found") without one.
+  `vercel.json`'s `outputDirectory` points at it explicitly rather than
+  relying on that being the right default. `vercel.json`'s rewrite still
+  sends every real path to the API function first, so this file is never
+  actually served except at a bare `/`.
 - **Vercel project settings**: Root Directory `apps/api`, Framework Preset
   "Other". Required env vars: `MONGODB_URI` (a real MongoDB, e.g. Atlas —
   not the local dev one), `SESSION_SECRET` and `KMS_LOCAL_MASTER_KEY`
