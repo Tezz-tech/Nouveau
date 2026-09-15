@@ -28,6 +28,16 @@ const envSchema = z
     EMAIL_PROVIDER: z.enum(["console", "resend"]).default("console"),
     RESEND_API_KEY: z.string().optional(),
     EMAIL_FROM: z.string().optional(),
+    /** Defaults to "lax", which is correct when apps/web and apps/api share
+     *  a registrable domain (e.g. app.example.com + api.example.com — the
+     *  common case, and how local dev works since both are on localhost).
+     *  Set to "none" only if they're deployed on genuinely different
+     *  domains (e.g. a Vercel *.vercel.app frontend calling a Render
+     *  *.onrender.com API) — browsers never send a Lax cookie on a
+     *  cross-site fetch, which would otherwise make login silently fail in
+     *  production while working fine in dev. "none" forces `secure: true`
+     *  regardless of NODE_ENV, since browsers require that combination. */
+    COOKIE_SAME_SITE: z.enum(["lax", "none"]).default("lax"),
   })
   .refine((env) => env.EMAIL_PROVIDER !== "resend" || Boolean(env.RESEND_API_KEY && env.EMAIL_FROM), {
     message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",

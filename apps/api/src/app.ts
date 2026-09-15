@@ -35,8 +35,10 @@ export function createApp(deps: AppDependencies): Express {
       store: deps.sessionStore ?? MongoStore.create({ mongoUrl: env.MONGODB_URI }),
       cookie: {
         httpOnly: true,
-        secure: env.NODE_ENV === "production",
-        sameSite: "lax",
+        // "none" requires Secure regardless of NODE_ENV — browsers drop a
+        // SameSite=None cookie without it.
+        secure: env.NODE_ENV === "production" || env.COOKIE_SAME_SITE === "none",
+        sameSite: env.COOKIE_SAME_SITE,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       },
     })
