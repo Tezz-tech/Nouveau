@@ -110,12 +110,14 @@ src/
     api.ts               fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
     AuthContext.tsx      the one source of truth for "am I logged in" / onboarding status
     demoDashboardData.ts DEMO DATA for most of dashboard/ — see "Dashboard" below
+    demoAnalyticsData.ts DEMO DATA for dashboard/analytics/ — see "Dashboard" below
   pages/             Home, Services, About, Support, NotFound — plus the real,
                      functional Login, Signup, ResetPasswordRequest, ResetPasswordConfirm
     onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/
                      (IdentityStep, BrokerAccountStep, CredentialsStep, LpoaStep, CompleteStep)
-    dashboard/       DashboardLayout (nav + gating) + Overview, Funding, Withdraw,
+    dashboard/       DashboardLayout (nav + gating) + Overview, Analytics, Funding, Withdraw,
                      Transactions, TradingHistory, Profile — see "Dashboard" below
+      analytics/     SketchableChart (chart + freehand drawing overlay) used by Analytics
 public/
   images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
 .mcp.json            21st.dev MCP server config (url only — no secret; see below)
@@ -125,7 +127,7 @@ public/
 Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
 `/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
 broker-account, credentials, lpoa, complete), `/dashboard/*` (root/Overview,
-funding, withdraw, transactions, history, profile). The onboarding and
+analytics, funding, withdraw, transactions, history, profile). The onboarding and
 dashboard routes render without the site's header/footer (see `App.tsx`'s
 `SiteLayout` split) — they're focused task/app flows, not pages to
 navigate away from mid-step.
@@ -146,6 +148,21 @@ dashboard.
 
 - **Overview** (`/dashboard`) — account summary, an equity chart
   (`recharts`), and a decision-log-style activity feed.
+- **Analytics** (`/dashboard/analytics`) — the trading-analytics tool: a
+  pair selector (`lib/demoAnalyticsData.ts`'s `PAIRS`), a price chart with a
+  freehand sketch overlay (`analytics/SketchableChart.tsx`), a "fundamental
+  analysis" panel, and a trade ticket. The chart, pair switching, and
+  sketching are fully real and interactive — strokes are drawn via pointer
+  events, kept in raw pixel coordinates, and persisted per-pair to
+  `localStorage` (key `nouveau:sketch:<PAIR>`), with a Hide/Unhide toggle
+  that keeps the strokes in state without discarding them. The fundamental
+  analysis text and the trade ticket are **not** real: there is no live
+  market-data or broker connection, and no LLM behind the analysis — the
+  banner at the top of the page and the trade ticket's own "Not live yet"
+  notice say so explicitly, and every ticket control is `disabled`, same as
+  Funding/Withdraw below. Don't wire a real broker or LLM into this page
+  without re-confirming with the client first — the brief this was built
+  against was explicit that an LLM must never place trades.
 - **Funding** (`/dashboard/funding`) / **Withdraw** (`/dashboard/withdraw`)
   — preview-only. Every control is `disabled`, not just style-muted, since
   there's no payment processor connected — a form that *looked*
@@ -162,8 +179,9 @@ dashboard.
   `apps/api`'s models before assuming it has to be a demo page too.
 
 **Every other number in this section is demo data**, from
-`lib/demoDashboardData.ts` — there is no deposit flow, ledger persistence,
-or broker/market data connection yet (that's Phase 3+). This was a
+`lib/demoDashboardData.ts` and, for Analytics, `lib/demoAnalyticsData.ts` —
+there is no deposit flow, ledger persistence, or broker/market data
+connection yet (that's Phase 3+). This was a
 deliberate choice, confirmed with the client rather than assumed: ship the
 design now (real chart, real layout, real gating logic, real nav) with
 data that's clearly labeled as illustrative wherever it has to be fake —
