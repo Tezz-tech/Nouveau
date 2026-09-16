@@ -9,10 +9,11 @@ underlying trading strategy (proprietary by design) while being transparent
 about allocation logic and risk controls.
 
 **This is also the entire frontend, not just the public pages.** Login,
-signup, password reset, and the five-step onboarding wizard live here too,
-talking to the real `@nouveau/api` backend — they started out as a
-separate `apps/web` project during Phase 2 and were merged back in once
-that was flagged as the wrong call. There is deliberately no second
+signup, password reset, the five-step onboarding wizard, and the account
+dashboard live here too, talking to the real `@nouveau/api` backend where
+real data exists — they started out as a separate `apps/web` project
+during Phase 2 and were merged back in once that was flagged as the wrong
+call. There is deliberately no second
 frontend app; see the root README's "One frontend, not several."
 
 ## Stack
@@ -105,13 +106,15 @@ src/
     ui/              design-system primitives (Button, Container, Accordion, form fields, Icon, Glow)
   content/           all page copy, as typed objects — see "Editing copy" below
   lib/
-    motion.ts        centralised motion variants, easing, durations, stagger values
-    api.ts           fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
-    AuthContext.tsx  the one source of truth for "am I logged in" / onboarding status
+    motion.ts            centralised motion variants, easing, durations, stagger values
+    api.ts               fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
+    AuthContext.tsx      the one source of truth for "am I logged in" / onboarding status
+    demoDashboardData.ts DEMO DATA for Dashboard.tsx — see the "Dashboard" section below
   pages/             Home, Services, About, Support, NotFound — plus the real,
                      functional Login, Signup, ResetPasswordRequest, ResetPasswordConfirm
     onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/
                      (IdentityStep, BrokerAccountStep, CredentialsStep, LpoaStep, CompleteStep)
+    Dashboard.tsx    account overview + equity chart — see "Dashboard" below
 public/
   images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
 .mcp.json            21st.dev MCP server config (url only — no secret; see below)
@@ -120,11 +123,35 @@ public/
 
 Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
 `/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
-broker-account, credentials, lpoa, complete). The onboarding routes render
-without the site's header/footer (see `App.tsx`'s `SiteLayout` split) — it's
-a focused task flow, not a page to navigate away from mid-step.
+broker-account, credentials, lpoa, complete), `/dashboard`. The onboarding
+and dashboard routes render without the site's header/footer (see
+`App.tsx`'s `SiteLayout` split) — they're focused task/app flows, not pages
+to navigate away from mid-step.
 `/pricing` and `/how-it-works` from an earlier iteration of this site were
 removed along with the reserve-mechanic content model they described.
+
+## Dashboard
+
+`pages/Dashboard.tsx` shows an account summary, an equity chart
+(`recharts`), and a decision-log-style activity feed — gated the same way
+onboarding is (redirect to `/login` if unauthenticated, redirect to
+`/onboarding` if it isn't complete yet).
+
+**Every number on it is demo data**, from `lib/demoDashboardData.ts` — there
+is no deposit flow, ledger persistence, or broker/market data connection
+yet (that's Phase 3+), so there is no real account data to show. This was
+a deliberate choice, confirmed with the client rather than assumed: ship
+the dashboard's design now (real chart, real layout, real gating logic)
+with data that's clearly labeled as illustrative — the same way the
+original Login/Signup pages were visual-only "design preview" pages before
+Phase 2 made them real. **The demo-data banner at the top of the page must
+stay** until real account data actually exists; removing it while the data
+underneath is still fake would misrepresent a real user's own money on a
+financial platform.
+
+The `Dashboard` route is lazy-loaded (`React.lazy` in `App.tsx`) — `recharts`
+and its dependencies add real weight that public marketing visitors
+shouldn't pay for on every page load, only on `/dashboard` itself.
 
 ## Changing the palette
 

@@ -116,8 +116,13 @@ regardless of stack. Violating any of these is a critical bug:
   wizard, all surfaced through `apps/marketing` (see "One frontend, not
   several" above). Deployed: `apps/api` on Vercel, `apps/marketing`
   wherever the public site was already hosted.
-- Everything from Phase 3 on (ledger persistence, broker integration,
-  dashboards, admin) — not started.
+- **Dashboard UI** — built ahead of its real backend, deliberately: the
+  design/layout/chart at `apps/marketing/src/pages/Dashboard.tsx` are real,
+  but every number on it is demo data (see that app's README "Dashboard"
+  section) since deposits/ledger/broker data don't exist yet. Don't remove
+  its demo-data banner until Phase 3 actually backs it with real numbers.
+- Everything else from Phase 3 on (ledger persistence, broker integration,
+  real dashboard data, admin) — not started.
 
 ## A note on scope
 
