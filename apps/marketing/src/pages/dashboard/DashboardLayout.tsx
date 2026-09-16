@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 
 const NAV_ITEMS: { to: string; label: string; end?: boolean }[] = [
   { to: "/dashboard", label: "Overview", end: true },
-  { to: "/dashboard/analytics", label: "Analytics" },
+  { to: "/dashboard/analytics", label: "Fundamental Analysis" },
   { to: "/dashboard/funding", label: "Funding" },
   { to: "/dashboard/withdraw", label: "Withdraw" },
   { to: "/dashboard/transactions", label: "Transactions" },
