@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Seo from "@/components/Seo";
 import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
@@ -11,9 +11,14 @@ export default function ResetPasswordConfirm() {
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // See BrokerAccountStep (onboarding) for why this ref (not just
+  // `disabled={submitting}`) is needed to stop a double submit dispatch.
+  const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -22,6 +27,7 @@ export default function ResetPasswordConfirm() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }

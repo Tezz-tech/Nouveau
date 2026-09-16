@@ -43,7 +43,17 @@ export default function OnboardingLayout() {
     }
   }, [loading, authenticated, onboarding, location.pathname, navigate]);
 
-  if (loading || !onboarding) {
+  // Deliberately NOT `loading || !onboarding` — `loading` also flips true
+  // on every background refresh() call after a step submission (not just
+  // the very first load), and `onboarding` never resets to null for those.
+  // Gating on `loading` too was unmounting this whole subtree (including
+  // whatever step is currently mounted) on every single step transition,
+  // and remounting it fresh milliseconds later — before the redirect
+  // effect above had navigated away — which reset that step's local form
+  // state to empty right as it (or a test driving it) could still act on
+  // it. A real bug, not hypothetical: it showed up as onboarding steps
+  // occasionally submitting empty data on their second, spurious mount.
+  if (!onboarding) {
     return <div className="p-6 text-body text-slate">Loading…</div>;
   }
 

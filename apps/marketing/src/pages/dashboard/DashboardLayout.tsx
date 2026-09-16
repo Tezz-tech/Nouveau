@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 
 const NAV_ITEMS: { to: string; label: string; end?: boolean }[] = [
   { to: "/dashboard", label: "Overview", end: true },
+  { to: "/dashboard/analytics", label: "Analytics" },
   { to: "/dashboard/funding", label: "Funding" },
   { to: "/dashboard/withdraw", label: "Withdraw" },
   { to: "/dashboard/transactions", label: "Transactions" },
@@ -37,7 +38,15 @@ export default function DashboardLayout() {
     }
   }, [loading, authenticated, onboarding, navigate]);
 
-  if (loading || !authenticated || onboarding?.nextStep !== "complete") {
+  // Deliberately NOT gated on `loading` too — see the identical note in
+  // OnboardingLayout.tsx. `loading` flips true on every background
+  // refresh() after an action, not just the first load, and `authenticated`/
+  // `onboarding` both keep their last-known value during that window, so
+  // gating on `loading` here would unmount and remount every dashboard
+  // page (losing in-progress local state — e.g. an in-progress Analytics
+  // sketch stroke) on every single API call, not just real access-control
+  // transitions.
+  if (!authenticated || onboarding?.nextStep !== "complete") {
     return <div className="p-6 text-body text-slate">Loading…</div>;
   }
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
 import { api, ApiError } from "@/lib/api";
@@ -15,9 +15,18 @@ export default function BrokerAccountStep() {
   const [form, setForm] = useState({ broker: "", login: "", serverName: "" });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous guard against a double submit dispatch — `disabled={submitting}`
+  // alone isn't enough, since it only takes effect once React re-renders
+  // with the updated state, and two submit events close enough together
+  // can both see `submitting` as still false. Confirmed as a real bug via
+  // Playwright: this step's onSubmit fired twice from a single click,
+  // succeeding once then failing with a harmless 409 on the duplicate.
+  const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -26,6 +35,7 @@ export default function BrokerAccountStep() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }
@@ -42,7 +52,7 @@ export default function BrokerAccountStep() {
           name="broker"
           required
           value={form.broker}
-          onChange={(e) => setForm({ ...form, broker: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, broker: e.target.value }))}
         />
       </RiseIn>
       <RiseIn index={2}>
@@ -51,7 +61,7 @@ export default function BrokerAccountStep() {
           name="login"
           required
           value={form.login}
-          onChange={(e) => setForm({ ...form, login: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, login: e.target.value }))}
         />
       </RiseIn>
       <RiseIn index={3}>
@@ -60,7 +70,7 @@ export default function BrokerAccountStep() {
           name="serverName"
           required
           value={form.serverName}
-          onChange={(e) => setForm({ ...form, serverName: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, serverName: e.target.value }))}
         />
       </RiseIn>
       <RiseIn index={4}>

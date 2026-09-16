@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { TextField, SelectField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
 import { api, ApiError } from "@/lib/api";
@@ -9,9 +9,14 @@ export default function IdentityStep() {
   const [form, setForm] = useState({ fullName: "", dateOfBirth: "", idType: "passport", idNumber: "" });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // See BrokerAccountStep for why this ref (not just `disabled={submitting}`)
+  // is needed to stop a double submit dispatch.
+  const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -24,6 +29,7 @@ export default function IdentityStep() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }
@@ -42,7 +48,7 @@ export default function IdentityStep() {
           name="fullName"
           required
           value={form.fullName}
-          onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
         />
       </RiseIn>
       <RiseIn index={2}>
@@ -52,7 +58,7 @@ export default function IdentityStep() {
           type="date"
           required
           value={form.dateOfBirth}
-          onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
         />
       </RiseIn>
       <RiseIn index={3}>
@@ -60,7 +66,7 @@ export default function IdentityStep() {
           label="ID type"
           name="idType"
           value={form.idType}
-          onChange={(e) => setForm({ ...form, idType: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, idType: e.target.value }))}
           options={[
             { value: "passport", label: "Passport" },
             { value: "national_id", label: "National ID" },
@@ -74,7 +80,7 @@ export default function IdentityStep() {
           name="idNumber"
           required
           value={form.idNumber}
-          onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
+          onChange={(e) => setForm((prev) => ({ ...prev, idNumber: e.target.value }))}
         />
       </RiseIn>
       <RiseIn index={5}>

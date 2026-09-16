@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useRef, useState, useEffect, type FormEvent } from "react";
 import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
 import { api, ApiError } from "@/lib/api";
@@ -10,6 +10,9 @@ export default function LpoaStep() {
   const [signedName, setSignedName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // See BrokerAccountStep for why this ref (not just `disabled={submitting}`)
+  // is needed to stop a double submit dispatch.
+  const inFlight = useRef(false);
 
   useEffect(() => {
     api.get<{ version: string; text: string }>("/onboarding/lpoa-document").then(setDocument);
@@ -17,6 +20,8 @@ export default function LpoaStep() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -25,6 +30,7 @@ export default function LpoaStep() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }

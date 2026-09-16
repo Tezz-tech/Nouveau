@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Seo from "@/components/Seo";
 import Glow from "@/components/ui/Glow";
@@ -17,9 +17,14 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isSlow = useDelayedFlag(submitting, 2500);
+  // See BrokerAccountStep for why this ref (not just `disabled={submitting}`)
+  // is needed to stop a double submit dispatch.
+  const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -29,6 +34,7 @@ export default function Login() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }

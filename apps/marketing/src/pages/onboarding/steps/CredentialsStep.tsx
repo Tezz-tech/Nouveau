@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
 import { api, ApiError } from "@/lib/api";
@@ -9,9 +9,14 @@ export default function CredentialsStep() {
   const [mt5Password, setMt5Password] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // See BrokerAccountStep for why this ref (not just `disabled={submitting}`)
+  // is needed to stop a double submit dispatch.
+  const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -20,6 +25,7 @@ export default function CredentialsStep() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
       setMt5Password(""); // never leave it sitting in state longer than necessary
     }

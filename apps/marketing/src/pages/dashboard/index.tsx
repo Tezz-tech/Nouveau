@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
 import Overview from "./Overview";
+import Analytics from "./Analytics";
 import Funding from "./Funding";
 import Withdraw from "./Withdraw";
 import Transactions from "./Transactions";
@@ -18,6 +19,7 @@ export default function DashboardModule() {
     <Routes>
       <Route element={<DashboardLayout />}>
         <Route index element={<Overview />} />
+        <Route path="analytics" element={<Analytics />} />
         <Route path="funding" element={<Funding />} />
         <Route path="withdraw" element={<Withdraw />} />
         <Route path="transactions" element={<Transactions />} />

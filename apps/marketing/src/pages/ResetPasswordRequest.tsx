@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/Seo";
 import { TextField, SubmitButton } from "@/components/ui/FormField";
@@ -8,13 +8,19 @@ export default function ResetPasswordRequest() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // See BrokerAccountStep (onboarding) for why this ref (not just
+  // `disabled={submitting}`) is needed to stop a double submit dispatch.
+  const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setSubmitting(true);
     try {
       await api.post("/auth/password-reset/request", { email });
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
       setSubmitted(true); // shown regardless of outcome — never reveal whether the email is registered
     }
