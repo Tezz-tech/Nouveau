@@ -7,6 +7,7 @@ import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField"
 import { loginContent } from "@/content/auth";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useDelayedFlag } from "@/lib/useDelayedFlag";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const isSlow = useDelayedFlag(submitting, 2500);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -70,6 +72,11 @@ export default function Login() {
               />
 
               <SubmitButton disabled={submitting}>{submitting ? "Logging in…" : "Log in"}</SubmitButton>
+              {isSlow && (
+                <p role="status" aria-live="polite" className="text-caption text-slate">
+                  Still working — a first request can take a few extra seconds. Hang tight.
+                </p>
+              )}
             </form>
 
             <div className="mt-8 flex items-center justify-between text-caption">
