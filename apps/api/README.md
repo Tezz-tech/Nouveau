@@ -73,12 +73,27 @@ the client's project already lives.
   never calls `app.listen()` — Vercel owns the HTTP listening — and shares
   `buildApiApp()` with `server.ts` so the two entrypoints can't drift on
   which adapters get used.
-- **It gets bundled, not deployed as-is.** The `vercel-build` script (npm
-  auto-detects and runs this — no extra Vercel config needed) runs esbuild
-  against it, producing `api/index.js` — the file Vercel's serverless
-  convention actually picks up. `api/` itself is gitignored; it's
-  generated fresh on every build. `vercel.json`'s rewrite sends every path
-  to it, since this API has no `/api` prefix convention of its own.
+- **It gets bundled, not deployed as-is** — the `vercel-build` script runs
+  esbuild against it, producing `api/index.js`, the file Vercel's
+  serverless-function convention actually picks up. `vercel.json`'s
+  rewrite sends every path to `/api/index` (the file-path route — not
+  relying on "index" collapsing to `/api`), since this API has no `/api`
+  prefix convention of its own.
+- **`api/index.js` is committed, not gitignored**, even though it's a
+  generated build artifact. Belt-and-suspenders on purpose: relying solely
+  on Vercel actually invoking `vercel-build` at deploy time turned out to
+  be a real single point of failure in production — when it silently
+  didn't run (or wasn't invoked the way expected), the whole deployment
+  fell back to serving `public/index.html` for every path (even `POST`
+  requests got a static file server's `405`, since no function existed at
+  all) with no error to indicate why. `vercel.json`'s explicit
+  `"buildCommand": "npm run vercel-build"` now removes the ambiguity
+  going forward, but the committed file means the function exists even if
+  that command is ever skipped. **This means it must be regenerated and
+  re-committed after every change to `src/vercelHandler.ts` or anything it
+  imports** — run `npm run vercel-build -w @nouveau/api` and commit the
+  result alongside the source change; a stale committed bundle would
+  silently deploy old behavior.
 - **Why bundling is necessary at all** — two layered problems, in the
   order they were actually hit in production:
   1. Pointing Vercel at TypeScript source directly (`src/server.ts` or an

@@ -1,0 +1,8 @@
+# apps/api/api/index.js is a committed build artifact (an esbuild bundle —
+# see apps/api/README.md's "Deploying" section for why). It's re-generated
+# by contributors and by Vercel on every deploy. Some of the inlined source
+# it bundles (the LPOA document text) is a multi-line template literal with
+# embedded newlines — CRLF conversion on checkout would change those raw
+# bytes, so what gets deployed could silently differ from what was tested
+# locally. Force LF regardless of platform checkout settings.
+apps/api/api/index.js -text eol=lf
