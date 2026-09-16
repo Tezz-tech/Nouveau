@@ -89,9 +89,12 @@ Two ways to ship it:
   GitLab/Bitbucket repo and import it at vercel.com/new — every push then
   deploys automatically, with preview deployments on branches/PRs.
 
-The only thing worth doing once you have a real domain: update `site.url`
-in `src/content/site.ts` and the URLs in `public/sitemap.xml` — they
-currently point at the placeholder `https://nouveau.example`.
+`site.url` (`src/content/site.ts`), `public/sitemap.xml`, and
+`public/robots.txt` point at the real deployed domain
+(`https://nouveau-marketing.vercel.app`) rather than a placeholder. If a
+custom domain ever replaces the `.vercel.app` one, update all three —
+and `apps/api`'s `CORS_ORIGIN` (see `apps/api/README.md`), since it has
+to match exactly or the deployed site can't reach the API at all.
 
 ## Project structure
 

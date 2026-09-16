@@ -132,10 +132,21 @@ the client's project already lives.
 - **Vercel project settings**: Root Directory `apps/api`, Framework Preset
   "Other". Required env vars: `MONGODB_URI` (a real MongoDB, e.g. Atlas —
   not the local dev one), `SESSION_SECRET` and `KMS_LOCAL_MASTER_KEY`
-  (fresh random values, never reused from `.env`), `CORS_ORIGIN` (the
-  deployed `apps/marketing` URL), `TRADING_MODE=paper`. If `apps/marketing`
-  ends up on a different domain than this API, also set `COOKIE_SAME_SITE=none` (see
-  `config/env.ts`) or login will silently fail for real users.
+  (fresh random values, never reused from `.env`), `TRADING_MODE=paper`,
+  and:
+  - `CORS_ORIGIN=https://nouveau-marketing.vercel.app` — the real deployed
+    frontend.
+  - `COOKIE_SAME_SITE=none` — **required here, not optional.** `nouveau-api`
+    and `nouveau-marketing` are two different Vercel *projects*, both on
+    `*.vercel.app`. `vercel.app` is on the public suffix list specifically
+    so that different customers' subdomains don't share cookies with each
+    other, which means browsers treat these two as genuinely different
+    sites, not just different subdomains of one site — the same as if they
+    were on entirely unrelated domains. `COOKIE_SAME_SITE=lax` (the
+    default, correct when a frontend and API share a real registrable
+    domain like `app.example.com` + `api.example.com`) would silently
+    drop the session cookie on every cross-project request here. See
+    `config/env.ts` for the mechanics.
 - **If this ever moves off Vercel** to a traditional host (Render,
   Railway, a VPS): `npm run build && npm start` (plain `tsc` +
   `node dist/server.js`) is untested end-to-end and has the exact second

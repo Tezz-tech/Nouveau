@@ -3,7 +3,7 @@ export const site = {
   defaultTitle: "Nouveau — Elite Trading Infrastructure for Capital Growth",
   defaultDescription:
     "Professional trading. Structured risk. Measurable results. Nouveau is a trading firm built for capital holders and serious traders.",
-  url: "https://nouveau.example",
+  url: "https://nouveau-marketing.vercel.app",
 };
 
 export type NavLink = { label: string; to: string };

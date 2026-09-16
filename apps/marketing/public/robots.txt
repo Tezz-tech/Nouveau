@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nouveau.example/sitemap.xml
+Sitemap: https://nouveau-marketing.vercel.app/sitemap.xml
