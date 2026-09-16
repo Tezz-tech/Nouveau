@@ -768,6 +768,33 @@ function createOnboardingRouter(kycAdapter) {
   return router;
 }
 
+// src/routes/profile.ts
+import { Router as Router3 } from "express";
+
+// src/services/profileService.ts
+async function getProfileSummary(user) {
+  const account = await MtAccount.findOne({ userId: user._id }).sort({ createdAt: -1 });
+  return {
+    email: user.email,
+    kycStatus: user.kycStatus,
+    memberSince: user.get("createdAt").toISOString(),
+    brokerAccount: account ? { broker: account.broker, login: account.login, serverName: account.serverName, status: account.status } : null
+  };
+}
+
+// src/routes/profile.ts
+function createAccountRouter() {
+  const router = Router3();
+  router.use(requireAuth);
+  router.get(
+    "/profile",
+    asyncHandler(async (req, res) => {
+      res.status(200).json(await getProfileSummary(req.user));
+    })
+  );
+  return router;
+}
+
 // src/app.ts
 function createApp(deps) {
   const env2 = getEnv();
@@ -799,6 +826,7 @@ function createApp(deps) {
   });
   app2.use("/auth", createAuthRouter(deps.emailAdapter, deps.appBaseUrl));
   app2.use("/onboarding", createOnboardingRouter(deps.kycAdapter));
+  app2.use("/account", createAccountRouter());
   app2.use(errorHandler);
   return app2;
 }

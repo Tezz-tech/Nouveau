@@ -18,8 +18,8 @@ import NotFound from "@/pages/NotFound";
 
 // Code-split: recharts (and its d3 dependencies) add real weight that
 // public marketing visitors shouldn't pay for on every page load — only
-// fetch it when someone actually navigates to the dashboard.
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
+// fetch it when someone actually navigates into the dashboard.
+const DashboardModule = lazy(() => import("@/pages/dashboard"));
 import OnboardingLayout from "@/pages/onboarding/OnboardingLayout";
 import IdentityStep from "@/pages/onboarding/steps/IdentityStep";
 import BrokerAccountStep from "@/pages/onboarding/steps/BrokerAccountStep";
@@ -75,10 +75,10 @@ export default function App() {
             <Route path="complete" element={<CompleteStep />} />
           </Route>
           <Route
-            path="/dashboard"
+            path="/dashboard/*"
             element={
               <Suspense fallback={<div className="p-6 text-body text-slate">Loading…</div>}>
-                <Dashboard />
+                <DashboardModule />
               </Suspense>
             }
           />

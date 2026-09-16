@@ -24,6 +24,22 @@ export interface ActivityEntry {
   detail: string;
 }
 
+export interface TransactionEntry {
+  day: number;
+  type: "Deposit" | "Fee" | "Settlement";
+  amountCents: number;
+  balanceAfterCents: number;
+}
+
+export interface TradeEntry {
+  day: number;
+  instrument: string;
+  direction: "Long" | "Short";
+  entryPrice: number;
+  exitPrice: number | null;
+  pnlCents: number | null;
+}
+
 const DEPOSIT_CENTS = 1_000_000; // $10,000
 const CUSTODY_CENTS = DEPOSIT_CENTS / 2; // $5,000 — segregated, never traded
 const TARGET_CENTS = Math.round(DEPOSIT_CENTS * 1.5); // $15,000 total equity
@@ -100,6 +116,32 @@ export const demoActivity: ActivityEntry[] = [
     day: 0,
     title: "Cycle started",
     detail: `$${(DEPOSIT_CENTS / 100).toLocaleString()} deposited — $${(CUSTODY_CENTS / 100).toLocaleString()} moved to custody, $${(CUSTODY_CENTS / 100).toLocaleString()} funded the at-risk sub-account. Target set at $${(TARGET_CENTS / 100).toLocaleString()} total equity.`,
+  },
+];
+
+export const demoTransactions: TransactionEntry[] = [
+  { day: 45, type: "Settlement", amountCents: 0, balanceAfterCents: demoEquitySeries[45]!.equityCents },
+  { day: 30, type: "Fee", amountCents: -4900, balanceAfterCents: demoEquitySeries[30]!.equityCents },
+  { day: 0, type: "Deposit", amountCents: DEPOSIT_CENTS, balanceAfterCents: DEPOSIT_CENTS },
+];
+
+export const demoTrades: TradeEntry[] = [
+  { day: 42, instrument: "EUR/USD", direction: "Long", entryPrice: 1.0842, exitPrice: null, pnlCents: null },
+  {
+    day: 34,
+    instrument: "GBP/USD",
+    direction: "Short",
+    entryPrice: 1.2711,
+    exitPrice: 1.2634,
+    pnlCents: 61_300,
+  },
+  {
+    day: 3,
+    instrument: "USD/JPY",
+    direction: "Long",
+    entryPrice: 149.82,
+    exitPrice: 151.05,
+    pnlCents: 42_800,
   },
 ];
 

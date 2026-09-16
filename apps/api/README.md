@@ -16,6 +16,12 @@ adapter interface. KYC stays a simulator by choice; email has a real
   (`GET /onboarding/status`, then one `POST` per step). Step ordering is
   enforced by `@nouveau/core`'s `canCompleteStep` — the routes don't
   reimplement that logic, they just surface its `409` when violated.
+- **`routes/profile.ts`** (`GET /account/profile`) — read-only account
+  summary (email, KYC status, broker account details) for the dashboard's
+  Profile page, the one dashboard section in `apps/marketing` backed by
+  real data rather than demo data. Never includes `passwordHash` or an
+  MtAccount's `credentialRef` (the encrypted MT5 password) — not just
+  unset, not present in the response shape at all.
 - **`adapters/kyc/`** — `KycAdapter` interface + `SimulatorKycAdapter`
   (approves anything not obviously placeholder data). No real Dojah/Smile
   ID integration yet — the brief presents them as an either/or and doesn't

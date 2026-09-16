@@ -109,12 +109,13 @@ src/
     motion.ts            centralised motion variants, easing, durations, stagger values
     api.ts               fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
     AuthContext.tsx      the one source of truth for "am I logged in" / onboarding status
-    demoDashboardData.ts DEMO DATA for Dashboard.tsx — see the "Dashboard" section below
+    demoDashboardData.ts DEMO DATA for most of dashboard/ — see "Dashboard" below
   pages/             Home, Services, About, Support, NotFound — plus the real,
                      functional Login, Signup, ResetPasswordRequest, ResetPasswordConfirm
     onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/
                      (IdentityStep, BrokerAccountStep, CredentialsStep, LpoaStep, CompleteStep)
-    Dashboard.tsx    account overview + equity chart — see "Dashboard" below
+    dashboard/       DashboardLayout (nav + gating) + Overview, Funding, Withdraw,
+                     Transactions, TradingHistory, Profile — see "Dashboard" below
 public/
   images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
 .mcp.json            21st.dev MCP server config (url only — no secret; see below)
@@ -123,35 +124,54 @@ public/
 
 Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
 `/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
-broker-account, credentials, lpoa, complete), `/dashboard`. The onboarding
-and dashboard routes render without the site's header/footer (see
-`App.tsx`'s `SiteLayout` split) — they're focused task/app flows, not pages
-to navigate away from mid-step.
+broker-account, credentials, lpoa, complete), `/dashboard/*` (root/Overview,
+funding, withdraw, transactions, history, profile). The onboarding and
+dashboard routes render without the site's header/footer (see `App.tsx`'s
+`SiteLayout` split) — they're focused task/app flows, not pages to
+navigate away from mid-step.
 `/pricing` and `/how-it-works` from an earlier iteration of this site were
 removed along with the reserve-mechanic content model they described.
 
 ## Dashboard
 
-`pages/Dashboard.tsx` shows an account summary, an equity chart
-(`recharts`), and a decision-log-style activity feed — gated the same way
-onboarding is (redirect to `/login` if unauthenticated, redirect to
-`/onboarding` if it isn't complete yet).
+`pages/dashboard/` is a full section, not one page — `DashboardLayout.tsx`
+provides the persistent nav (sidebar on desktop, a scrollable tab strip on
+mobile) and gates every page under it the same way onboarding is gated
+(redirect to `/login` if unauthenticated, redirect to `/onboarding` if it
+isn't complete yet). `index.tsx` wires up the nested routes as one
+`React.lazy`-loaded module (`/dashboard/*` in `App.tsx`) — `recharts` and
+its dependencies add real weight that public marketing visitors shouldn't
+pay for on every page load, only once someone actually opens the
+dashboard.
 
-**Every number on it is demo data**, from `lib/demoDashboardData.ts` — there
-is no deposit flow, ledger persistence, or broker/market data connection
-yet (that's Phase 3+), so there is no real account data to show. This was
-a deliberate choice, confirmed with the client rather than assumed: ship
-the dashboard's design now (real chart, real layout, real gating logic)
-with data that's clearly labeled as illustrative — the same way the
-original Login/Signup pages were visual-only "design preview" pages before
-Phase 2 made them real. **The demo-data banner at the top of the page must
-stay** until real account data actually exists; removing it while the data
-underneath is still fake would misrepresent a real user's own money on a
-financial platform.
+- **Overview** (`/dashboard`) — account summary, an equity chart
+  (`recharts`), and a decision-log-style activity feed.
+- **Funding** (`/dashboard/funding`) / **Withdraw** (`/dashboard/withdraw`)
+  — preview-only. Every control is `disabled`, not just style-muted, since
+  there's no payment processor connected — a form that *looked*
+  submittable here could make a real user think they'd actually moved
+  real money when nothing happened. Don't enable these before a real
+  payment flow exists behind them.
+- **Transactions** (`/dashboard/transactions`) / **Trading history**
+  (`/dashboard/history`) — read-only demo tables.
+- **Profile** (`/dashboard/profile`) — **the one real page.** Fetches
+  `GET /account/profile` from `@nouveau/api` (email, KYC status, broker
+  account summary — never a credential) rather than using
+  `lib/demoDashboardData.ts`. If you add a section that could plausibly be
+  backed by real data already sitting in the database, check
+  `apps/api`'s models before assuming it has to be a demo page too.
 
-The `Dashboard` route is lazy-loaded (`React.lazy` in `App.tsx`) — `recharts`
-and its dependencies add real weight that public marketing visitors
-shouldn't pay for on every page load, only on `/dashboard` itself.
+**Every other number in this section is demo data**, from
+`lib/demoDashboardData.ts` — there is no deposit flow, ledger persistence,
+or broker/market data connection yet (that's Phase 3+). This was a
+deliberate choice, confirmed with the client rather than assumed: ship the
+design now (real chart, real layout, real gating logic, real nav) with
+data that's clearly labeled as illustrative wherever it has to be fake —
+the same way the original Login/Signup pages were visual-only "design
+preview" pages before Phase 2 made them real. **The "Example account"
+banners must stay** on every demo-data page until Phase 3 actually backs
+them with real numbers; removing one while the data underneath is still
+fake would misrepresent a real user's own money on a financial platform.
 
 ## Changing the palette
 

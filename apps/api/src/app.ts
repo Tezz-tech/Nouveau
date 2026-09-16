@@ -7,6 +7,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import { defaultRateLimit } from "./middleware/rateLimit";
 import { createAuthRouter } from "./routes/auth";
 import { createOnboardingRouter } from "./routes/onboarding";
+import { createAccountRouter } from "./routes/profile";
 import type { EmailAdapter } from "./adapters/email/EmailAdapter";
 import type { KycAdapter } from "./adapters/kyc/KycAdapter";
 
@@ -51,6 +52,7 @@ export function createApp(deps: AppDependencies): Express {
 
   app.use("/auth", createAuthRouter(deps.emailAdapter, deps.appBaseUrl));
   app.use("/onboarding", createOnboardingRouter(deps.kycAdapter));
+  app.use("/account", createAccountRouter());
 
   app.use(errorHandler);
 
