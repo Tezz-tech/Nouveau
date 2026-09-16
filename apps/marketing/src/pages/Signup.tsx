@@ -1,15 +1,37 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import Seo from "@/components/Seo";
 import Glow from "@/components/ui/Glow";
 import { LogoFull } from "@/components/ui/Logo";
-import { TextField, SelectField } from "@/components/ui/FormField";
-import { signupContent, interestOptions } from "@/content/auth";
+import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
+import { signupContent } from "@/content/auth";
+import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Signup() {
+  const navigate = useNavigate();
+  const { refresh } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.post("/auth/signup", { email, password });
+      await refresh();
+      navigate("/onboarding");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <>
@@ -30,21 +52,16 @@ export default function Signup() {
             </h1>
             <p className="mt-3 text-body text-slate">{signupContent.sub}</p>
 
-            <form
-              noValidate
-              onSubmit={(e) => {
-                e.preventDefault();
-                setSubmitted(true);
-              }}
-              className="mt-10 space-y-6"
-            >
-              <TextField label="Full name" name="name" required autoComplete="name" />
+            <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
+              {error && <ErrorBanner message={error} />}
               <TextField
                 label="Email"
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
               <TextField
                 label="Password"
@@ -52,10 +69,11 @@ export default function Signup() {
                 type="password"
                 required
                 autoComplete="new-password"
-                minLength={8}
-                errorMessage="Password must be at least 8 characters."
+                minLength={10}
+                errorMessage="Password must be at least 10 characters."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
-              <SelectField label="Primary interest" name="interest" options={interestOptions} />
 
               <label className="flex cursor-pointer items-start gap-3">
                 <input
@@ -87,24 +105,12 @@ export default function Signup() {
                 </span>
               </label>
 
-              <button
-                type="submit"
-                disabled={!acknowledged}
-                className="w-full bg-ink px-6 py-3.5 text-small text-paper transition-colors duration-300 hover:bg-navy disabled:cursor-not-allowed disabled:bg-navy-line/30 disabled:text-slate/70 disabled:hover:bg-navy-line/30"
-              >
-                Create account
-              </button>
-              <p className="text-caption text-slate">
-                {acknowledged
-                  ? " "
-                  : "Acknowledge the risk above to continue."}
-              </p>
-
-              <p role="status" aria-live="polite" className="min-h-[1.2em] text-caption text-gold-deep">
-                {submitted
-                  ? "This is a design preview — no account was actually created."
-                  : ""}
-              </p>
+              <SubmitButton disabled={!acknowledged || submitting}>
+                {submitting ? "Creating account…" : "Create account"}
+              </SubmitButton>
+              {!acknowledged && (
+                <p className="text-caption text-slate">Acknowledge the risk above to continue.</p>
+              )}
             </form>
 
             <p className="mt-8 text-caption text-slate">

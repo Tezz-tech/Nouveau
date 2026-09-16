@@ -23,10 +23,3 @@ export const signupContent = {
     ],
   },
 };
-
-export const interestOptions = [
-  "Fund Management",
-  "Trading Bots",
-  "Trader Intelligence & Simulation",
-  "Not sure yet",
-];

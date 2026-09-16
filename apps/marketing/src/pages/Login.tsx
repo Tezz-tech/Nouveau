@@ -1,13 +1,35 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Seo from "@/components/Seo";
 import Glow from "@/components/ui/Glow";
 import { LogoFull } from "@/components/ui/Logo";
-import { TextField } from "@/components/ui/FormField";
+import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import { loginContent } from "@/content/auth";
+import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Login() {
-  const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
+  const { refresh } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.post("/auth/login", { email, password });
+      await refresh();
+      navigate("/onboarding");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <>
@@ -25,20 +47,16 @@ export default function Login() {
             </h1>
             <p className="mt-3 text-body text-slate">{loginContent.sub}</p>
 
-            <form
-              noValidate
-              onSubmit={(e) => {
-                e.preventDefault();
-                setSubmitted(true);
-              }}
-              className="mt-10 space-y-6"
-            >
+            <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
+              {error && <ErrorBanner message={error} />}
               <TextField
                 label="Email"
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
               <TextField
                 label="Password"
@@ -47,26 +65,17 @@ export default function Login() {
                 required
                 autoComplete="current-password"
                 errorMessage="Enter your password."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
 
-              <button
-                type="submit"
-                className="w-full bg-ink px-6 py-3.5 text-small text-paper transition-colors duration-300 hover:bg-navy"
-              >
-                Log in
-              </button>
-
-              <p role="status" aria-live="polite" className="min-h-[1.2em] text-caption text-gold-deep">
-                {submitted
-                  ? "This is a design preview — no account exists to log into."
-                  : ""}
-              </p>
+              <SubmitButton disabled={submitting}>{submitting ? "Logging in…" : "Log in"}</SubmitButton>
             </form>
 
             <div className="mt-8 flex items-center justify-between text-caption">
-              <button type="button" className="text-slate underline decoration-navy-line underline-offset-4">
+              <Link to="/reset-password" className="text-slate underline decoration-navy-line underline-offset-4">
                 Forgot password
-              </button>
+              </Link>
               <Link to="/signup" className="text-gold-deep">
                 Open an account instead
               </Link>

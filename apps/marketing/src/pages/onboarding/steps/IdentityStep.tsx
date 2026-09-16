@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { TextField, SelectField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import { TextField, SelectField, Button, ErrorBanner } from "@/components/FormField";
 
 export default function IdentityStep() {
   const { refresh } = useAuth();
@@ -28,8 +28,8 @@ export default function IdentityStep() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <p className="text-sm text-slate">
+    <form onSubmit={onSubmit} className="space-y-6" noValidate>
+      <p className="text-body text-slate">
         We need to confirm you are who you say you are, as required by law before you can trade.
       </p>
       {error && <ErrorBanner message={error} />}
@@ -66,9 +66,7 @@ export default function IdentityStep() {
         value={form.idNumber}
         onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
       />
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Verifying…" : "Verify identity"}
-      </Button>
+      <SubmitButton disabled={submitting}>{submitting ? "Verifying…" : "Verify identity"}</SubmitButton>
     </form>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import { TextField, Button, ErrorBanner } from "@/components/FormField";
 
 /**
  * ASSUMPTION FLAGGED (mirrors the note in @nouveau/api's README): with no
@@ -30,8 +30,8 @@ export default function BrokerAccountStep() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <p className="text-sm text-slate">We open a trading sub-account in your name at our partner broker.</p>
+    <form onSubmit={onSubmit} className="space-y-6" noValidate>
+      <p className="text-body text-slate">We open a trading sub-account in your name at our partner broker.</p>
       {error && <ErrorBanner message={error} />}
       <TextField
         label="Broker"
@@ -54,9 +54,7 @@ export default function BrokerAccountStep() {
         value={form.serverName}
         onChange={(e) => setForm({ ...form, serverName: e.target.value })}
       />
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Creating account…" : "Create trading account"}
-      </Button>
+      <SubmitButton disabled={submitting}>{submitting ? "Creating account…" : "Create trading account"}</SubmitButton>
     </form>
   );
 }

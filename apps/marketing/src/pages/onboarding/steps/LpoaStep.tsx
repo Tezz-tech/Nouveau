@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import { TextField, Button, ErrorBanner } from "@/components/FormField";
 
 export default function LpoaStep() {
   const { refresh } = useAuth();
@@ -29,18 +29,18 @@ export default function LpoaStep() {
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-slate">
+    <div className="space-y-6">
+      <p className="text-body text-slate">
         You authorize our trading desk to manage the at-risk half of your deposit, within limits you set now.
       </p>
-      <div className="max-h-64 overflow-y-auto border border-navy-line/40 bg-paper-2 p-4 text-xs leading-relaxed text-ink">
+      <div className="max-h-64 overflow-y-auto border border-navy-line/40 bg-paper-2 p-4 text-caption leading-relaxed text-ink">
         {document ? (
-          <pre className="whitespace-pre-wrap font-sans">{document.text}</pre>
+          <pre className="whitespace-pre-wrap font-text">{document.text}</pre>
         ) : (
           <p className="text-slate">Loading document…</p>
         )}
       </div>
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="space-y-6" noValidate>
         {error && <ErrorBanner message={error} />}
         <TextField
           label="Type your full legal name to sign"
@@ -50,9 +50,9 @@ export default function LpoaStep() {
           value={signedName}
           onChange={(e) => setSignedName(e.target.value)}
         />
-        <Button type="submit" disabled={submitting || !document}>
+        <SubmitButton disabled={submitting || !document}>
           {submitting ? "Signing…" : "Sign and continue"}
-        </Button>
+        </SubmitButton>
       </form>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import { TextField, Button, ErrorBanner } from "@/components/FormField";
 
 export default function CredentialsStep() {
   const { refresh } = useAuth();
@@ -25,8 +25,8 @@ export default function CredentialsStep() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <p className="text-sm text-slate">
+    <form onSubmit={onSubmit} className="space-y-6" noValidate>
+      <p className="text-body text-slate">
         Your trading account login is encrypted — no one at Nouveau can read it back, including our own staff.
       </p>
       {error && <ErrorBanner message={error} />}
@@ -39,9 +39,7 @@ export default function CredentialsStep() {
         value={mt5Password}
         onChange={(e) => setMt5Password(e.target.value)}
       />
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Securing…" : "Secure my credentials"}
-      </Button>
+      <SubmitButton disabled={submitting}>{submitting ? "Securing…" : "Secure my credentials"}</SubmitButton>
     </form>
   );
 }

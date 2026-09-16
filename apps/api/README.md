@@ -133,8 +133,8 @@ the client's project already lives.
   "Other". Required env vars: `MONGODB_URI` (a real MongoDB, e.g. Atlas —
   not the local dev one), `SESSION_SECRET` and `KMS_LOCAL_MASTER_KEY`
   (fresh random values, never reused from `.env`), `CORS_ORIGIN` (the
-  deployed `apps/web` URL), `TRADING_MODE=paper`. If `apps/web` ends up on
-  a different domain than this API, also set `COOKIE_SAME_SITE=none` (see
+  deployed `apps/marketing` URL), `TRADING_MODE=paper`. If `apps/marketing`
+  ends up on a different domain than this API, also set `COOKIE_SAME_SITE=none` (see
   `config/env.ts`) or login will silently fail for real users.
 - **If this ever moves off Vercel** to a traditional host (Render,
   Railway, a VPS): `npm run build && npm start` (plain `tsc` +

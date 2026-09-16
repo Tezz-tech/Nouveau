@@ -49,27 +49,37 @@ already provides.
 
 ```
 apps/
-  marketing/       React + Vite — the public marketing site (existing, complete)
-  web/              (Phase 6) user dashboard — not yet built
-  admin/            (Phase 7) admin dashboard — not yet built, may fold into web/
-  api/              (Phase 2+) Express — REST, auth, webhooks — not yet built
+  marketing/       React + Vite — the ENTIRE frontend: public site, auth
+                    (login/signup/password reset), and the onboarding
+                    wizard all live here as one app. See "One frontend,
+                    not several" below for why.
+  api/              Express — auth, onboarding, REST. Deployed on Vercel
+                    as a bundled serverless function; see apps/api/README.md.
 services/           (Phase 5+) engine, allocator, marketdata, intel, reconciler — not yet built
 packages/
   core/             Phase 1 — pure cycle/ledger/floor/revenue logic, zero I/O. See packages/core/README.md.
-  db/               (Phase 3+) Mongoose schemas/models — not yet built
-  ui/               (later) shared React components between marketing/web/admin — not yet built
+  security/         Argon2 password hashing, envelope encryption, tokens.
+  db/               Mongoose schemas/models (User, MtAccount, etc.).
+  ui/               (later) shared React components, if a second frontend app is ever justified — not yet built
 ```
 
-Only `apps/marketing` and `packages/core` exist so far. Everything else is
-listed here so the intended shape is visible before it's built — per the
-brief's own "build phase by phase, do not skip ahead," don't scaffold a
-phase before it's actually being worked on.
+### One frontend, not several
+
+Early in Phase 2 this became a separate `apps/web` project for the
+authenticated experience. That was a mistake, corrected once flagged: the
+frontend is one app. `apps/marketing`'s existing `Login`/`Signup` pages
+(originally visual-only placeholders) are now the real, functional ones,
+wired to `apps/api`, alongside the onboarding wizard under
+`/onboarding/*`. Don't split the frontend into a second app for a future
+phase (a user dashboard, say) without a genuinely new reason to — the
+default is one frontend folder.
 
 ## Getting started
 
 ```bash
 npm install                              # installs and links every workspace
-npm run dev -w @nouveau/marketing        # marketing site, http://localhost:5173
+npm run dev -w @nouveau/marketing        # the whole frontend, http://localhost:5173
+npm run dev -w @nouveau/api              # the API, http://localhost:4000 — needs a running MongoDB
 npm test -w @nouveau/core                # Phase 1 logic tests
 npm run test:coverage -w @nouveau/core   # with coverage thresholds
 ```
@@ -99,10 +109,15 @@ regardless of stack. Violating any of these is a critical bug:
 - **Phase 1 (`packages/core`)** — done. Money type, ledger primitives, all
   three floor policies, both revenue models, the cycle state machine, and
   the settlement calculator, with property-based tests. See
-  `packages/core/README.md` for what it owns, what it must never do, and
-  three assumptions flagged for confirmation before later phases build on
-  top of it.
-- Everything else — not started.
+  `packages/core/README.md` for what it owns and what it must never do.
+- **Phase 2 (auth + onboarding)** — done. `packages/security` (Argon2,
+  envelope encryption, tokens) and `packages/db` (Mongoose models) back
+  `apps/api`'s signup/login/password-reset and the five-step onboarding
+  wizard, all surfaced through `apps/marketing` (see "One frontend, not
+  several" above). Deployed: `apps/api` on Vercel, `apps/marketing`
+  wherever the public site was already hosted.
+- Everything from Phase 3 on (ledger persistence, broker integration,
+  dashboards, admin) — not started.
 
 ## A note on scope
 

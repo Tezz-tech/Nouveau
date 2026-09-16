@@ -1,7 +1,9 @@
 import {
   useState,
+  type ButtonHTMLAttributes,
   type FocusEvent,
   type InputHTMLAttributes,
+  type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
@@ -107,7 +109,7 @@ export function SelectField({
 }: {
   label: string;
   name: string;
-  options: string[];
+  options: string[] | { value: string; label: string }[];
 } & SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div className={className}>
@@ -122,12 +124,50 @@ export function SelectField({
         className={clsx(fieldBase, borderIdle, borderFocus, "mt-2")}
         {...rest}
       >
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
+        {options.map((opt) =>
+          typeof opt === "string" ? (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ) : (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          )
+        )}
       </select>
+    </div>
+  );
+}
+
+/** A submit button matching the site's existing form-button treatment
+ *  (previously duplicated inline on Login/Signup) — same disabled styling
+ *  as the risk-acknowledgement-gated signup button. */
+export function SubmitButton({
+  children,
+  className,
+  ...rest
+}: { children: ReactNode } & ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="submit"
+      className={clsx(
+        "w-full bg-ink px-6 py-3.5 text-small text-paper transition-colors duration-300 hover:bg-navy disabled:cursor-not-allowed disabled:bg-navy-line/30 disabled:text-slate/70 disabled:hover:bg-navy-line/30",
+        className
+      )}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Inline error display for real form-submission failures (as opposed to
+ *  the gold-toned status/hint text used for design-preview messaging). */
+export function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div role="alert" className="border border-ink bg-paper-2 px-4 py-3 text-small text-ink">
+      {message}
     </div>
   );
 }

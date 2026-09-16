@@ -27,7 +27,7 @@ export async function buildTestApp() {
   const app = createApp({
     emailAdapter,
     kycAdapter: new SimulatorKycAdapter(),
-    appBaseUrl: "http://localhost:5174",
+    appBaseUrl: "http://localhost:5173",
     // in-memory session store for tests — MongoStore would try to open a
     // second real connection using connect-mongo's own client
     sessionStore: new session.MemoryStore(),

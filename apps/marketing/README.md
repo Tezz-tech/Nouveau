@@ -6,9 +6,14 @@ marketing site for Nouveau, a professional trading firm offering
 Fund Management, Trading Bots, and Trader Intelligence & Simulation.
 Positioning is institutional-grade and deliberately vague about the
 underlying trading strategy (proprietary by design) while being transparent
-about allocation logic and risk controls. No backend, no auth, no live data
-— every form is visual only and every button either routes to another page
-or does nothing.
+about allocation logic and risk controls.
+
+**This is also the entire frontend, not just the public pages.** Login,
+signup, password reset, and the five-step onboarding wizard live here too,
+talking to the real `@nouveau/api` backend — they started out as a
+separate `apps/web` project during Phase 2 and were merged back in once
+that was flagged as the wrong call. There is deliberately no second
+frontend app; see the root README's "One frontend, not several."
 
 ## Stack
 
@@ -46,6 +51,11 @@ npm run preview -w @nouveau/marketing  # serves the production build locally
 Or `cd apps/marketing` first and drop the `-w @nouveau/marketing` from each
 command.
 
+Auth/onboarding pages need `@nouveau/api` actually running — see
+`apps/api/README.md`. Copy `.env.example` to `.env.local` if the API isn't
+on `http://localhost:4000` (the built-in default); `VITE_API_BASE_URL`
+points at it.
+
 ## Deploying to Vercel
 
 **This app moved into a monorepo at `apps/marketing/`.** If a Vercel
@@ -62,6 +72,13 @@ resolve correctly on a hard refresh or direct link, instead of 404ing
 (static files under `public/` are still served directly and aren't
 affected by the rewrite). `package.json` also pins a `"node": ">=18.0.0"`
 engine range.
+
+**Set `VITE_API_BASE_URL` in the Vercel project's env vars** to wherever
+`@nouveau/api` is actually deployed — Vite bakes it into the build at
+build time (it's not read at runtime), so it must be set before the build
+runs, not just present on the server afterward. Also update `apps/api`'s
+own `CORS_ORIGIN` (and `COOKIE_SAME_SITE` if the two end up on different
+domains — see `apps/api/README.md`) to point back at this app's real URL.
 
 Two ways to ship it:
 
@@ -84,15 +101,25 @@ src/
     motion/          motion primitives (RevealLines, Hairline)
     ui/              design-system primitives (Button, Container, Accordion, form fields, Icon, Glow)
   content/           all page copy, as typed objects — see "Editing copy" below
-  lib/motion.ts      centralised motion variants, easing, durations, stagger values
-  pages/             one file per route: Home, Services, About, Support, Login, Signup, NotFound
+  lib/
+    motion.ts        centralised motion variants, easing, durations, stagger values
+    api.ts           fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
+    AuthContext.tsx  the one source of truth for "am I logged in" / onboarding status
+  pages/             Home, Services, About, Support, NotFound — plus the real,
+                     functional Login, Signup, ResetPasswordRequest, ResetPasswordConfirm
+    onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/
+                     (IdentityStep, BrokerAccountStep, CredentialsStep, LpoaStep, CompleteStep)
 public/
   images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
 .mcp.json            21st.dev MCP server config (url only — no secret; see below)
-.env                 gitignored — holds TWENTYFIRST_API_KEY referenced by .mcp.json
+.env                 gitignored — holds TWENTYFIRST_API_KEY referenced by .mcp.json, and VITE_API_BASE_URL
 ```
 
-Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`.
+Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
+`/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
+broker-account, credentials, lpoa, complete). The onboarding routes render
+without the site's header/footer (see `App.tsx`'s `SiteLayout` split) — it's
+a focused task flow, not a page to navigate away from mid-step.
 `/pricing` and `/how-it-works` from an earlier iteration of this site were
 removed along with the reserve-mechanic content model they described.
 

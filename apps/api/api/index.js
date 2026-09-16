@@ -199,7 +199,7 @@ var envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4e3),
   MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
-  CORS_ORIGIN: z.string().min(1).default("http://localhost:5174"),
+  CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
   KMS_LOCAL_MASTER_KEY: z.string().min(1, "KMS_LOCAL_MASTER_KEY is required (base64, 32 bytes decoded) \u2014 generate with `openssl rand -base64 32`"),
   TRADING_MODE: z.enum(["paper", "live"]).default("paper"),
   /** Client chose Resend (2026-09-15) as the real email provider, but
@@ -208,7 +208,7 @@ var envSchema = z.object({
   EMAIL_PROVIDER: z.enum(["console", "resend"]).default("console"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
-  /** Defaults to "lax", which is correct when apps/web and apps/api share
+  /** Defaults to "lax", which is correct when apps/marketing and apps/api share
    *  a registrable domain (e.g. app.example.com + api.example.com — the
    *  common case, and how local dev works since both are on localhost).
    *  Set to "none" only if they're deployed on genuinely different

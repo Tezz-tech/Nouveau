@@ -38,14 +38,16 @@ export default function OnboardingLayout() {
   }, [loading, authenticated, onboarding, location.pathname, navigate]);
 
   if (loading || !onboarding) {
-    return <div className="p-6 text-sm text-slate">Loading…</div>;
+    return <div className="p-6 text-body text-slate">Loading…</div>;
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-lg px-6 py-10">
-      <h1 className="text-xl font-semibold text-ink">Set up your account</h1>
+    <div className="mx-auto min-h-[100svh] max-w-lg px-6 py-20">
+      <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 38px)" }}>
+        Set up your account
+      </h1>
 
-      <ol className="mt-6 space-y-0">
+      <ol className="mt-8 space-y-0">
         {onboarding.steps
           .filter((s) => s.step !== "account") // signup itself, already done by the time this page renders
           .map((s, i, arr) => {
@@ -56,7 +58,7 @@ export default function OnboardingLayout() {
                   <span className="absolute left-[11px] top-6 h-full w-px bg-navy-line/30" aria-hidden="true" />
                 )}
                 <span
-                  className={`z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+                  className={`z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-caption ${
                     s.completed
                       ? "bg-ink text-paper"
                       : isCurrent
@@ -67,7 +69,7 @@ export default function OnboardingLayout() {
                   {s.completed ? "✓" : i}
                 </span>
                 <div>
-                  <p className={`text-sm font-medium ${isCurrent ? "text-ink" : "text-slate"}`}>{s.description}</p>
+                  <p className={`text-small ${isCurrent ? "text-ink" : "text-slate"}`}>{s.description}</p>
                 </div>
               </li>
             );
@@ -85,7 +87,7 @@ export default function OnboardingLayout() {
         />
       </div>
 
-      <div className="mt-8">
+      <div className="mt-10">
         <Outlet />
       </div>
     </div>
