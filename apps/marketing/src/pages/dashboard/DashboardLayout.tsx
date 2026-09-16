@@ -1,7 +1,11 @@
 import { useEffect } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import clsx from "clsx";
+import Glow from "@/components/ui/Glow";
 import { LogoLockup } from "@/components/ui/Logo";
+import RouteFade from "@/components/motion/RouteFade";
+import { houseTransition } from "@/lib/motion";
 import { useAuth } from "@/lib/AuthContext";
 
 const NAV_ITEMS: { to: string; label: string; end?: boolean }[] = [
@@ -44,8 +48,10 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-[100svh] md:flex">
-      <aside className="border-b border-navy-line/15 bg-paper md:w-60 md:shrink-0 md:border-b-0 md:border-r">
-        <div className="flex items-center justify-between px-6 py-5">
+      <aside className="relative overflow-hidden border-b border-navy-line/15 bg-paper md:w-60 md:shrink-0 md:border-b-0 md:border-r">
+        <Glow tone="navy" size={280} className="pointer-events-none -left-24 -top-24 opacity-60" />
+
+        <div className="relative flex items-center justify-between px-6 py-5">
           <Link to="/" aria-label="Nouveau — home">
             <LogoLockup tone="light" />
           </Link>
@@ -57,24 +63,37 @@ export default function DashboardLayout() {
             Log out
           </button>
         </div>
-        <nav aria-label="Dashboard" className="flex gap-1 overflow-x-auto px-4 pb-4 md:flex-col md:gap-0.5 md:pb-6">
+        <nav aria-label="Dashboard" className="relative flex gap-1 overflow-x-auto px-4 pb-4 md:flex-col md:gap-0.5 md:pb-6">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) =>
-                clsx(
-                  "whitespace-nowrap px-3 py-2 text-small transition-colors duration-200 md:w-full",
-                  isActive ? "bg-ink text-paper" : "text-slate hover:text-ink"
-                )
-              }
+              className="relative whitespace-nowrap px-3 py-2 text-small md:w-full"
             >
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="dashboard-nav-active"
+                      transition={houseTransition}
+                      className="absolute inset-0 bg-ink"
+                    />
+                  )}
+                  <span
+                    className={clsx(
+                      "relative transition-colors duration-200",
+                      isActive ? "text-paper" : "text-slate hover:text-ink"
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
-        <div className="hidden px-4 pb-6 md:block">
+        <div className="relative hidden px-4 pb-6 md:block">
           <button
             type="button"
             onClick={handleLogout}
@@ -86,7 +105,7 @@ export default function DashboardLayout() {
       </aside>
       <main className="flex-1 px-6 py-10 md:px-10">
         <div className="mx-auto max-w-[820px]">
-          <Outlet />
+          <RouteFade />
         </div>
       </main>
     </div>

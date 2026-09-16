@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import Glow from "@/components/ui/Glow";
+import ProgressBar from "@/components/ui/ProgressBar";
+import RiseIn from "@/components/motion/RiseIn";
+import RouteFade from "@/components/motion/RouteFade";
+import { houseTransition } from "@/lib/motion";
 import { useAuth } from "@/lib/AuthContext";
 
 const STEP_TO_PATH: Record<string, string> = {
@@ -42,53 +48,61 @@ export default function OnboardingLayout() {
   }
 
   return (
-    <div className="mx-auto min-h-[100svh] max-w-lg px-6 py-20">
-      <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 38px)" }}>
-        Set up your account
-      </h1>
+    <div className="relative mx-auto min-h-[100svh] max-w-lg overflow-hidden px-6 py-20">
+      <Glow tone="gold" size={420} className="pointer-events-none -right-48 -top-32" />
 
-      <ol className="mt-8 space-y-0">
-        {onboarding.steps
-          .filter((s) => s.step !== "account") // signup itself, already done by the time this page renders
-          .map((s, i, arr) => {
-            const isCurrent = s.step === onboarding.nextStep;
-            return (
-              <li key={s.step} className="relative flex gap-3 pb-6 last:pb-0">
-                {i < arr.length - 1 && (
-                  <span className="absolute left-[11px] top-6 h-full w-px bg-navy-line/30" aria-hidden="true" />
-                )}
-                <span
-                  className={`z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-caption ${
-                    s.completed
-                      ? "bg-ink text-paper"
-                      : isCurrent
-                        ? "border-2 border-gold-deep text-gold-deep"
-                        : "border border-navy-line/40 text-slate"
-                  }`}
-                >
-                  {s.completed ? "✓" : i}
-                </span>
-                <div>
-                  <p className={`text-small ${isCurrent ? "text-ink" : "text-slate"}`}>{s.description}</p>
-                </div>
-              </li>
-            );
-          })}
-      </ol>
+      <RiseIn>
+        <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 38px)" }}>
+          Set up your account
+        </h1>
+      </RiseIn>
 
-      <div className="mt-6 h-1 w-full bg-paper-2">
-        <div
-          className="h-1 bg-gold-deep transition-all duration-300 ease-house"
-          style={{ width: `${onboarding.progressFraction * 100}%` }}
-          role="progressbar"
-          aria-valuenow={Math.round(onboarding.progressFraction * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        />
-      </div>
+      <RiseIn index={1}>
+        <ol className="relative mt-8 space-y-0">
+          {onboarding.steps
+            .filter((s) => s.step !== "account") // signup itself, already done by the time this page renders
+            .map((s, i, arr) => {
+              const isCurrent = s.step === onboarding.nextStep;
+              return (
+                <li key={s.step} className="relative flex gap-3 pb-6 last:pb-0">
+                  {i < arr.length - 1 && (
+                    <span className="absolute left-[11px] top-6 h-full w-px bg-navy-line/30" aria-hidden="true" />
+                  )}
+                  <span
+                    className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-caption transition-colors duration-300 ${
+                      s.completed
+                        ? "bg-ink text-paper"
+                        : isCurrent
+                          ? "border-2 border-gold-deep text-gold-deep"
+                          : "border border-navy-line/40 text-slate"
+                    }`}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={s.completed ? "done" : "todo"}
+                        initial={{ scale: 0.4, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={houseTransition}
+                      >
+                        {s.completed ? "✓" : i}
+                      </motion.span>
+                    </AnimatePresence>
+                  </span>
+                  <div>
+                    <p className={`text-small ${isCurrent ? "text-ink" : "text-slate"}`}>{s.description}</p>
+                  </div>
+                </li>
+              );
+            })}
+        </ol>
+      </RiseIn>
+
+      <RiseIn index={2} className="mt-6">
+        <ProgressBar fraction={onboarding.progressFraction} />
+      </RiseIn>
 
       <div className="mt-10">
-        <Outlet />
+        <RouteFade />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
+import RiseIn from "@/components/motion/RiseIn";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -26,20 +27,26 @@ export default function CredentialsStep() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-6" noValidate>
-      <p className="text-body text-slate">
-        Your trading account login is encrypted — no one at Nouveau can read it back, including our own staff.
-      </p>
+      <RiseIn>
+        <p className="text-body text-slate">
+          Your trading account login is encrypted — no one at Nouveau can read it back, including our own staff.
+        </p>
+      </RiseIn>
       {error && <ErrorBanner message={error} />}
-      <TextField
-        label="Trading account password"
-        name="mt5Password"
-        type="password"
-        required
-        autoComplete="off"
-        value={mt5Password}
-        onChange={(e) => setMt5Password(e.target.value)}
-      />
-      <SubmitButton disabled={submitting}>{submitting ? "Securing…" : "Secure my credentials"}</SubmitButton>
+      <RiseIn index={1}>
+        <TextField
+          label="Trading account password"
+          name="mt5Password"
+          type="password"
+          required
+          autoComplete="off"
+          value={mt5Password}
+          onChange={(e) => setMt5Password(e.target.value)}
+        />
+      </RiseIn>
+      <RiseIn index={2}>
+        <SubmitButton disabled={submitting}>{submitting ? "Securing…" : "Secure my credentials"}</SubmitButton>
+      </RiseIn>
     </form>
   );
 }

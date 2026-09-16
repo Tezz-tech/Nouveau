@@ -1,4 +1,5 @@
 import Seo from "@/components/Seo";
+import RiseIn from "@/components/motion/RiseIn";
 import { demoTrades, formatCents } from "@/lib/demoDashboardData";
 
 export default function TradingHistory() {
@@ -8,9 +9,11 @@ export default function TradingHistory() {
       <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 40px)" }}>
         Trading history
       </h1>
-      <div className="mt-6 border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
-        <strong className="font-text">Example account.</strong> Illustrative demo data, not real trading activity.
-      </div>
+      <RiseIn index={1} className="mt-6">
+        <div className="border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
+          <strong className="font-text">Example account.</strong> Illustrative demo data, not real trading activity.
+        </div>
+      </RiseIn>
       <div className="mt-8 overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-left text-small">
           <thead>
@@ -24,8 +27,13 @@ export default function TradingHistory() {
             </tr>
           </thead>
           <tbody>
-            {demoTrades.map((trade) => (
-              <tr key={`${trade.day}-${trade.instrument}`} className="border-b border-navy-line/10">
+            {demoTrades.map((trade, i) => (
+              <RiseIn
+                key={`${trade.day}-${trade.instrument}`}
+                as="tr"
+                index={2 + i}
+                className="border-b border-navy-line/10"
+              >
                 <td className="py-3 pr-4 text-slate">{trade.day}</td>
                 <td className="py-3 pr-4 text-ink">{trade.instrument}</td>
                 <td className="py-3 pr-4 text-ink">{trade.direction}</td>
@@ -36,7 +44,7 @@ export default function TradingHistory() {
                 <td className="py-3 font-mono-figure text-ink">
                   {trade.pnlCents === null ? "—" : formatCents(trade.pnlCents)}
                 </td>
-              </tr>
+              </RiseIn>
             ))}
           </tbody>
         </table>

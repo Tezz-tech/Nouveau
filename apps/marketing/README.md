@@ -248,6 +248,39 @@ than a half-animated version. `src/components/ui/Glow.tsx` is the soft
 blurred-radial background shape used behind hero/CTA sections for visual
 energy — navy/gold only, low opacity, never a rainbow gradient.
 
+**The authenticated app (onboarding, dashboard) reuses this same system**
+rather than a separate one — those pages originally shipped with no
+motion at all, which read as noticeably flatter than the marketing site
+once both existed side by side. Shared pieces, all built on
+`lib/motion.ts`'s `riseIn` variant (a general-purpose entrance, distinct
+from the hero-specific effects above, meant to be reused often):
+- **`components/motion/RiseIn.tsx`** — wraps content in a small stagger-
+  able rise+fade; falls back to a plain element under reduced motion.
+  Takes `as="li"`/`as="tr"` when wrapping something that must be a direct
+  child of a `ul`/`ol`/`table` — wrapping those in a plain `div` (the
+  default) is invalid HTML there.
+- **`components/motion/RouteFade.tsx`** — a quick (0.18s, overlapping, not
+  `mode="wait"`) local cross-fade for nested-route content (an onboarding
+  step, a dashboard tab), layered on top of `PageWipe`'s full-screen
+  transition. Deliberately fast and overlapping rather than sequential —
+  an earlier version used `mode="wait"` with `durations.fast` (0.4s),
+  which meant every dashboard tab click showed a blank screen for the
+  better part of a second while the old tab fully faded before the new
+  one started. Onboarding can tolerate slower pacing (there's already an
+  async submit to wait through); a dashboard's tab nav needs to feel
+  instant.
+- **`components/ui/ProgressBar.tsx`** — shared by `OnboardingLayout` and
+  the dashboard's `Overview`; animates its fill from 0 on mount instead of
+  snapping straight to its value.
+- The dashboard nav's active-tab highlight uses framer-motion's
+  `layoutId` for a sliding indicator between tabs (`DashboardLayout.tsx`)
+  — if you touch that markup, keep the highlight `<motion.span>` before
+  the label `<span>` in JSX and don't give either an explicit negative
+  `z-index`; normal DOM stacking order already puts the label on top, and
+  a negative z-index index can escape the nav item's own stacking context
+  and render behind the sidebar's background instead (a real bug caught
+  here, not a hypothetical one).
+
 ## Images
 
 There's no photography on the site at all now — the last remaining use (two

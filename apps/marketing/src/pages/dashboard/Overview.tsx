@@ -1,14 +1,18 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Seo from "@/components/Seo";
+import ProgressBar from "@/components/ui/ProgressBar";
+import RiseIn from "@/components/motion/RiseIn";
 import { demoAccount, demoActivity, demoEquitySeries, formatCents } from "@/lib/demoDashboardData";
 
-function SummaryCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function SummaryCard({ label, value, hint, index }: { label: string; value: string; hint?: string; index: number }) {
   return (
-    <div className="border border-navy-line/25 bg-paper px-5 py-4">
-      <p className="text-caption uppercase tracking-[0.06em] text-slate">{label}</p>
-      <p className="mt-1 font-mono-figure text-h3 text-ink">{value}</p>
-      {hint && <p className="mt-1 text-caption text-slate">{hint}</p>}
-    </div>
+    <RiseIn index={index}>
+      <div className="border border-navy-line/25 bg-paper px-5 py-4 transition-all duration-300 ease-house hover:-translate-y-0.5 hover:border-gold-deep/40 hover:shadow-[0_8px_24px_-12px_rgba(14,28,43,0.25)]">
+        <p className="text-caption uppercase tracking-[0.06em] text-slate">{label}</p>
+        <p className="mt-1 font-mono-figure text-h3 text-ink">{value}</p>
+        {hint && <p className="mt-1 text-caption text-slate">{hint}</p>}
+      </div>
+    </RiseIn>
   );
 }
 
@@ -28,44 +32,45 @@ export default function Overview() {
     <>
       <Seo title="Dashboard" description="Your Nouveau account overview." path="/dashboard" />
 
-      <div className="border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
-        <strong className="font-text">Example account.</strong> This page shows illustrative demo data, not a
-        real balance — deposits, live trading, and real account data arrive in a later phase of this build.
-      </div>
+      <RiseIn>
+        <div className="border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
+          <strong className="font-text">Example account.</strong> This page shows illustrative demo data, not a
+          real balance — deposits, live trading, and real account data arrive in a later phase of this build.
+        </div>
+      </RiseIn>
 
       <h1 className="mt-8 font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 40px)" }}>
         Account overview
       </h1>
 
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <SummaryCard label="Total equity" value={formatCents(demoAccount.totalEquityCents)} />
+        <SummaryCard index={1} label="Total equity" value={formatCents(demoAccount.totalEquityCents)} />
         <SummaryCard
+          index={2}
           label="Custody balance"
           value={formatCents(demoAccount.custodyCents)}
           hint="Segregated — never traded"
         />
-        <SummaryCard label="At-risk balance" value={formatCents(demoAccount.atRiskCents)} hint="Trading sub-account" />
-        <SummaryCard label="Cycle target" value={formatCents(demoAccount.targetCents)} />
+        <SummaryCard
+          index={3}
+          label="At-risk balance"
+          value={formatCents(demoAccount.atRiskCents)}
+          hint="Trading sub-account"
+        />
+        <SummaryCard index={4} label="Cycle target" value={formatCents(demoAccount.targetCents)} />
       </div>
 
-      <div className="mt-4">
+      <RiseIn index={5} className="mt-4">
         <div className="flex items-center justify-between text-caption text-slate">
           <span>Progress to target</span>
           <span>{Math.round(demoAccount.progressToTarget * 100)}%</span>
         </div>
-        <div className="mt-2 h-1 w-full bg-paper-2">
-          <div
-            className="h-1 bg-gold-deep transition-all duration-300 ease-house"
-            style={{ width: `${Math.min(100, Math.max(0, demoAccount.progressToTarget * 100))}%` }}
-            role="progressbar"
-            aria-valuenow={Math.round(demoAccount.progressToTarget * 100)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          />
+        <div className="mt-2">
+          <ProgressBar fraction={demoAccount.progressToTarget} />
         </div>
-      </div>
+      </RiseIn>
 
-      <div className="mt-10 h-72 border border-navy-line/25 bg-paper p-4">
+      <RiseIn index={6} className="mt-10 h-72 border border-navy-line/25 bg-paper p-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 8, right: 20, left: 0, bottom: 0 }}>
             <defs>
@@ -94,15 +99,28 @@ export default function Overview() {
               width={48}
             />
             <Tooltip content={<ChartTooltip />} />
-            <Area type="monotone" dataKey="equity" stroke="#8A6D1C" strokeWidth={2} fill="url(#equityFill)" />
+            <Area
+              type="monotone"
+              dataKey="equity"
+              stroke="#8A6D1C"
+              strokeWidth={2}
+              fill="url(#equityFill)"
+              animationDuration={900}
+              animationEasing="ease-out"
+            />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
+      </RiseIn>
 
       <h2 className="mt-10 font-display text-h3 text-ink">Recent activity</h2>
       <ol className="mt-4 space-y-0">
         {demoActivity.map((entry, i) => (
-          <li key={`${entry.day}-${entry.title}`} className="relative flex gap-3 pb-6 last:pb-0">
+          <RiseIn
+            key={`${entry.day}-${entry.title}`}
+            as="li"
+            index={7 + i}
+            className="relative flex gap-3 pb-6 last:pb-0"
+          >
             {i < demoActivity.length - 1 && (
               <span className="absolute left-[5px] top-4 h-full w-px bg-navy-line/25" aria-hidden="true" />
             )}
@@ -113,7 +131,7 @@ export default function Overview() {
               </p>
               <p className="mt-0.5 text-caption text-slate">{entry.detail}</p>
             </div>
-          </li>
+          </RiseIn>
         ))}
       </ol>
     </>

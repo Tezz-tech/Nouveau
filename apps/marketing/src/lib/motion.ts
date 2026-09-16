@@ -74,6 +74,21 @@ export const softAppear: Variants = {
   },
 };
 
+/** General-purpose entrance for the authenticated app (onboarding,
+ *  dashboard) — a small rise + fade, staggerable via the `custom` index.
+ *  Distinct from the marketing site's signature effects above
+ *  (`clipRiseLine`, `hairlineDraw`), which are one-off and lose their
+ *  weight if reused; this one is meant to be used often, on cards, list
+ *  rows, and form content. */
+export const riseIn: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: durations.fast, ease: easeHouse, delay: i * staggerChildren.tight },
+  }),
+};
+
 export const staggerContainer = (stagger: number = staggerChildren.base): Variants => ({
   hidden: {},
   visible: {
