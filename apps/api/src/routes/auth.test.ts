@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import request from "supertest";
+import { User } from "@nouveau/db";
+import { hashPassword } from "@nouveau/security";
 import { buildTestApp, type RecordingEmailAdapter } from "../test/testApp";
 import type { Express } from "express";
 
@@ -72,6 +74,29 @@ describe("POST /auth/signup", () => {
       "credentials",
       "plan",
     ]);
+  });
+
+  it("logs in a legacy user with no accountType stored at all, instead of 500ing — regression test for a real production crash (2026-09-28)", async () => {
+    // Reproduces every real user who signed up before `accountType` existed:
+    // insert via the raw driver, bypassing Mongoose's own schema defaults,
+    // so the stored document genuinely has no `accountType` key — exactly
+    // like the rows already in production that made GET /onboarding/status
+    // (called internally by POST /auth/login) throw "steps is not
+    // iterable" in `@nouveau/core`'s `nextStep`.
+    const passwordHash = await hashPassword("correcthorsebattery");
+    await User.collection.insertOne({
+      email: "legacy-login@example.com",
+      passwordHash,
+      kycStatus: "verified",
+      onboarding: { completedSteps: ["account", "identity", "broker_account", "credentials", "lpoa"] },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const res = await request(app).post("/auth/login").send({ email: "legacy-login@example.com", password: "correcthorsebattery" });
+    expect(res.status).toBe(200);
+    expect(res.body.onboarding.accountType).toBe("investor");
+    expect(res.body.onboarding.nextStep).toBe("complete");
   });
 });
 

@@ -68,13 +68,34 @@ describe("User model", () => {
     ).rejects.toThrow();
   });
 
-  it("requires accountType", async () => {
-    await expect(User.create({ email: "no-type@example.com", passwordHash: "hashed" })).rejects.toThrow();
+  it("defaults accountType to investor when omitted, rather than rejecting", async () => {
+    const user = await User.create({ email: "no-type@example.com", passwordHash: "hashed" });
+    expect(user.accountType).toBe("investor");
   });
 
   it("rejects an accountType that isn't investor or trader", async () => {
     await expect(
       User.create({ email: "bad-type@example.com", passwordHash: "hashed", accountType: "not_a_type" })
     ).rejects.toThrow();
+  });
+
+  it("reads back accountType as 'investor' for a legacy document that predates the field entirely — regression test for a real production crash (2026-09-28)", async () => {
+    // Simulates every real user who signed up before `accountType` existed:
+    // bypass Mongoose entirely (no schema defaults applied) so the raw
+    // document in the database genuinely has no `accountType` key at all,
+    // exactly like the rows already sitting in production. `required: true`
+    // alone does nothing for documents that already exist — this is what
+    // `default: "investor"` on the schema path is for.
+    await User.collection.insertOne({
+      email: "legacy@example.com",
+      passwordHash: "hashed",
+      kycStatus: "pending",
+      onboarding: { completedSteps: ["account", "identity"] },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const user = await User.findOne({ email: "legacy@example.com" });
+    expect(user?.accountType).toBe("investor");
   });
 });
