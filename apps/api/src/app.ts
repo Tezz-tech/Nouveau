@@ -8,6 +8,7 @@ import { defaultRateLimit } from "./middleware/rateLimit";
 import { createAuthRouter } from "./routes/auth";
 import { createOnboardingRouter } from "./routes/onboarding";
 import { createAccountRouter } from "./routes/profile";
+import { createLedgerRouter } from "./routes/ledger";
 import { createSignalsRouter } from "./routes/signals";
 import type { EmailAdapter } from "./adapters/email/EmailAdapter";
 import type { KycAdapter } from "./adapters/kyc/KycAdapter";
@@ -62,6 +63,7 @@ export function createApp(deps: AppDependencies): Express {
   app.use("/auth", createAuthRouter(deps.emailAdapter, deps.appBaseUrl));
   app.use("/onboarding", createOnboardingRouter(deps.kycAdapter, deps.brokerLinkAdapter, deps.paymentAdapter));
   app.use("/account", createAccountRouter());
+  app.use("/account", createLedgerRouter(deps.paymentAdapter));
   app.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
 
   app.use(errorHandler);

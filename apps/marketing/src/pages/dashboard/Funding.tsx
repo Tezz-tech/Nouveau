@@ -1,14 +1,50 @@
+import { useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import Seo from "@/components/Seo";
-import { TextField, SelectField, SubmitButton } from "@/components/ui/FormField";
+import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
+import { deposit } from "@/lib/ledgerApi";
+import { ApiError } from "@/lib/api";
 
 /**
- * Deliberately disabled, not just cosmetically "coming soon" — there is no
- * payment processor connected yet, so a form that looked submittable here
- * could make a real user think they'd actually deposited money when
- * nothing happened. Every control is `disabled`, not just style-muted.
+ * A real, working deposit form — posts to @nouveau/api's
+ * POST /account/deposit, which really splits the amount 50/50 into custody
+ * and at-risk and persists it to the ledger (see apps/api's ledgerService).
+ * What's still simulated is the payment capture itself: no real bank
+ * transfer or card charge happens yet, since no payment processor is
+ * connected (see the banner below and apps/api/README.md) — the banner
+ * must stay until a real processor is wired in, so a real user is never
+ * led to think a real transfer just happened.
  */
 export default function Funding() {
+  const navigate = useNavigate();
+  const [amount, setAmount] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const inFlight = useRef(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (inFlight.current) return;
+    const dollars = Number(amount);
+    if (!Number.isFinite(dollars) || dollars <= 0) {
+      setError("Enter a valid amount.");
+      return;
+    }
+    inFlight.current = true;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await deposit(Math.round(dollars * 100));
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+    } finally {
+      inFlight.current = false;
+      setSubmitting(false);
+    }
+  }
+
   return (
     <>
       <Seo title="Fund your account" description="Deposit into your Nouveau account." path="/dashboard/funding" />
@@ -17,24 +53,28 @@ export default function Funding() {
       </h1>
       <RiseIn index={1} className="mt-6">
         <div className="border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
-          <strong className="font-text">Not live yet.</strong> Deposits aren't processed on this build — this is a
-          preview of what funding will look like once a payment method is connected.
+          <strong className="font-text">Simulated payment.</strong> This deposit is real in your account
+          history — it splits into custody and at-risk exactly like a real one would — but no payment processor
+          is connected yet, so no real money moves.
         </div>
       </RiseIn>
-      <form className="mt-8 max-w-sm space-y-6" aria-disabled="true" noValidate>
+      <form onSubmit={onSubmit} className="mt-8 max-w-sm space-y-6" noValidate>
+        {error && <ErrorBanner message={error} />}
         <RiseIn index={2}>
-          <TextField label="Amount (USD)" name="amount" type="number" placeholder="10,000" disabled />
-        </RiseIn>
-        <RiseIn index={3}>
-          <SelectField
-            label="Payment method"
-            name="method"
-            disabled
-            options={["Bank transfer", "Debit card", "Wire transfer"]}
+          <TextField
+            label="Amount (USD)"
+            name="amount"
+            type="number"
+            min="1"
+            step="0.01"
+            placeholder="10,000"
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
           />
         </RiseIn>
-        <RiseIn index={4}>
-          <SubmitButton disabled>Deposit funds</SubmitButton>
+        <RiseIn index={3}>
+          <SubmitButton disabled={submitting}>{submitting ? "Depositing…" : "Deposit funds"}</SubmitButton>
         </RiseIn>
       </form>
     </>

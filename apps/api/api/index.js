@@ -24,6 +24,115 @@ function cents(value) {
   return BigInt(value);
 }
 var ZERO_CENTS = cents(0n);
+function add(a, b) {
+  return cents(a + b);
+}
+function subtract(a, b) {
+  return cents(a - b);
+}
+function negate(a) {
+  return cents(-a);
+}
+function sum(values) {
+  return values.reduce((acc, v) => add(acc, v), ZERO_CENTS);
+}
+function isPositive(a) {
+  return a > ZERO_CENTS;
+}
+function isZero(a) {
+  return a === ZERO_CENTS;
+}
+function ratioOf(amount, numerator, denominator) {
+  if (denominator === 0n) {
+    throw new RangeError("ratioOf: denominator must not be zero");
+  }
+  const negativeResult = amount < 0n !== numerator < 0n !== denominator < 0n;
+  const absAmount = amount < 0n ? -amount : amount;
+  const absNum = numerator < 0n ? -numerator : numerator;
+  const absDen = denominator < 0n ? -denominator : denominator;
+  const product = absAmount * absNum;
+  const quotient = product / absDen;
+  const remainder = product % absDen;
+  const roundedUp = remainder * 2n >= absDen ? quotient + 1n : quotient;
+  return cents(negativeResult ? -roundedUp : roundedUp);
+}
+function splitByRatio(amount, numerator, denominator) {
+  const first = ratioOf(amount, numerator, denominator);
+  const second = subtract(amount, first);
+  return { first, second };
+}
+function toDecimalString(amount) {
+  const negative = amount < ZERO_CENTS;
+  const absValue = negative ? -amount : amount;
+  const wholePart = absValue / 100n;
+  const fractionPart = (absValue % 100n).toString().padStart(2, "0");
+  return `${negative ? "-" : ""}${wholePart}.${fractionPart}`;
+}
+
+// ../../packages/core/src/ledger.ts
+var accounts = {
+  external: () => "external",
+  marketPnl: () => "market:pnl",
+  custody: (userId) => `custody:${userId}`,
+  atRisk: (userId) => `atrisk:${userId}`,
+  platformRevenue: () => "platform:revenue",
+  payoutPending: (userId) => `payout:${userId}`
+};
+var UnbalancedTransactionError = class extends Error {
+  constructor(entries, total) {
+    super(
+      `Ledger entries must sum to zero; got ${toDecimalString(total)} across ${entries.length} entries: ` + entries.map((e) => `${e.account}=${toDecimalString(e.amountCents)}`).join(", ")
+    );
+    this.name = "UnbalancedTransactionError";
+  }
+};
+function assertBalanced(entries) {
+  const total = sum(entries.map((e) => e.amountCents));
+  if (!isZero(total)) {
+    throw new UnbalancedTransactionError(entries, total);
+  }
+}
+function buildTransaction(kind, reference, entries) {
+  if (entries.length < 2) {
+    throw new RangeError("A ledger transaction needs at least two entries (double-entry, minimum one debit and one credit).");
+  }
+  assertBalanced(entries);
+  return { kind, reference, entries };
+}
+function requirePositive(amount, label) {
+  if (!isPositive(amount)) {
+    throw new RangeError(`${label} must be a positive amount; got ${toDecimalString(amount)}`);
+  }
+}
+function splitDeposit(userId, reference, depositAmount) {
+  requirePositive(depositAmount, "depositAmount");
+  const { first: custodyHalf, second: atRiskHalf } = splitByRatio(depositAmount, 1n, 2n);
+  return buildTransaction("deposit", reference, [
+    { account: accounts.external(), amountCents: negate(depositAmount) },
+    { account: accounts.custody(userId), amountCents: custodyHalf },
+    { account: accounts.atRisk(userId), amountCents: atRiskHalf }
+  ]);
+}
+function requestWithdrawal(userId, reference, amount) {
+  requirePositive(amount, "amount");
+  return buildTransaction("withdrawal_requested", reference, [
+    { account: accounts.custody(userId), amountCents: negate(amount) },
+    { account: accounts.payoutPending(userId), amountCents: amount }
+  ]);
+}
+function completeWithdrawal(userId, reference, amount) {
+  requirePositive(amount, "amount");
+  return buildTransaction("withdrawal_completed", reference, [
+    { account: accounts.payoutPending(userId), amountCents: negate(amount) },
+    { account: accounts.external(), amountCents: amount }
+  ]);
+}
+
+// ../../packages/core/src/cycle/settlement.ts
+function computeTarget(depositCents) {
+  const { first: custodyCents, second: atRiskCents } = splitByRatio(depositCents, 1n, 2n);
+  return add(custodyCents, add(atRiskCents, atRiskCents));
+}
 
 // ../../packages/core/src/onboarding/types.ts
 var ONBOARDING_STEPS_BY_TYPE = {
@@ -356,6 +465,33 @@ var signalLogSchema = new Schema6(
   { timestamps: true }
 );
 var SignalLog = model6("SignalLog", signalLogSchema);
+
+// ../../packages/db/src/models/LedgerTransaction.ts
+import { Schema as Schema7, model as model7 } from "mongoose";
+var ledgerEntrySchema = new Schema7(
+  {
+    account: { type: String, required: true },
+    amountCents: { type: String, required: true }
+  },
+  { _id: false }
+);
+var ledgerTransactionSchema = new Schema7(
+  {
+    userId: { type: Schema7.Types.ObjectId, ref: "User", required: true, index: true },
+    kind: { type: String, required: true },
+    reference: { type: String, required: true, unique: true },
+    entries: { type: [ledgerEntrySchema], required: true },
+    /** A human-readable amount/description for the transaction list, set
+     *  explicitly by whichever service builds the transaction rather than
+     *  reverse-engineered from `entries` — simpler and less fragile than
+     *  inferring "the interesting number" generically from a double-entry
+     *  transaction's legs. */
+    displayAmountCents: { type: String, required: true },
+    description: { type: String, required: true }
+  },
+  { timestamps: true }
+);
+var LedgerTransaction = model7("LedgerTransaction", ledgerTransactionSchema);
 
 // src/config/env.ts
 import { z } from "zod";
@@ -1077,8 +1213,149 @@ function createAccountRouter() {
   return router;
 }
 
-// src/routes/signals.ts
+// src/routes/ledger.ts
 import { Router as Router4 } from "express";
+import { z as z4 } from "zod";
+
+// src/services/ledgerService.ts
+import { randomUUID } from "node:crypto";
+async function persist(userId, txn, displayAmountCents, description) {
+  await LedgerTransaction.create({
+    userId,
+    kind: txn.kind,
+    reference: txn.reference,
+    entries: txn.entries.map((e) => ({ account: e.account, amountCents: e.amountCents.toString() })),
+    displayAmountCents: displayAmountCents.toString(),
+    description
+  });
+}
+async function getOverview(userId) {
+  const custodyAccount = accounts.custody(userId);
+  const atRiskAccount = accounts.atRisk(userId);
+  const docs = await LedgerTransaction.find({ userId }).sort({ createdAt: 1 });
+  let custodyCents = ZERO_CENTS;
+  let atRiskCents = ZERO_CENTS;
+  let totalDeposited = ZERO_CENTS;
+  const equitySeries = [];
+  for (const doc of docs) {
+    for (const entry of doc.entries) {
+      const amount = cents(entry.amountCents);
+      if (entry.account === custodyAccount) custodyCents = add(custodyCents, amount);
+      else if (entry.account === atRiskAccount) atRiskCents = add(atRiskCents, amount);
+    }
+    if (doc.kind === "deposit") {
+      totalDeposited = add(totalDeposited, cents(doc.displayAmountCents));
+    }
+    equitySeries.push({
+      timestamp: doc.get("createdAt").toISOString(),
+      totalEquityCents: add(custodyCents, atRiskCents)
+    });
+  }
+  return {
+    custodyCents,
+    atRiskCents,
+    totalEquityCents: add(custodyCents, atRiskCents),
+    totalDepositedCents: totalDeposited,
+    targetCents: totalDeposited > ZERO_CENTS ? computeTarget(totalDeposited) : null,
+    equitySeries
+  };
+}
+async function deposit(user, payment, amountCents) {
+  if (user.accountType !== "investor") {
+    throw new HttpError(403, "Deposits are only available on the investor track.");
+  }
+  const chargeResult = await payment.chargeDeposit({ userId: user.id, amountCents: amountCents.toString() });
+  if (!chargeResult.succeeded) {
+    throw new HttpError(402, chargeResult.reason ?? "Payment failed.");
+  }
+  const txn = splitDeposit(user.id, chargeResult.providerReference, amountCents);
+  await persist(user.id, txn, amountCents, `Deposit of $${toDecimalString(amountCents)}`);
+  return getOverview(user.id);
+}
+async function withdraw(user, payment, amountCents) {
+  if (user.accountType !== "investor") {
+    throw new HttpError(403, "Withdrawals are only available on the investor track.");
+  }
+  const overview = await getOverview(user.id);
+  if (amountCents > overview.custodyCents) {
+    throw new HttpError(422, "Withdrawal amount exceeds your available custody balance.");
+  }
+  const reference = `wd_${randomUUID()}`;
+  const requestTxn = requestWithdrawal(user.id, reference, amountCents);
+  await persist(user.id, requestTxn, amountCents, `Withdrawal requested: $${toDecimalString(amountCents)}`);
+  const payoutResult = await payment.payOut({ userId: user.id, amountCents: amountCents.toString() });
+  if (!payoutResult.succeeded) {
+    throw new HttpError(502, payoutResult.reason ?? "Payout failed \u2014 your funds are held pending retry.");
+  }
+  const completeTxn = completeWithdrawal(user.id, `${reference}-complete`, amountCents);
+  await persist(user.id, completeTxn, amountCents, `Withdrawal completed: $${toDecimalString(amountCents)}`);
+  return getOverview(user.id);
+}
+async function listTransactions(userId) {
+  const docs = await LedgerTransaction.find({ userId }).sort({ createdAt: -1 });
+  return docs.map((doc) => ({
+    kind: doc.kind,
+    reference: doc.reference,
+    description: doc.description,
+    amountCents: doc.displayAmountCents,
+    createdAt: doc.get("createdAt").toISOString()
+  }));
+}
+
+// src/routes/ledger.ts
+var amountSchema = z4.object({
+  // Whole cents, as a JSON number — the frontend converts a dollar amount
+  // to cents before sending, same convention as @nouveau/core's Cents.
+  amountCents: z4.number().int().positive()
+});
+function serializeOverview(o) {
+  return {
+    custodyCents: o.custodyCents.toString(),
+    atRiskCents: o.atRiskCents.toString(),
+    totalEquityCents: o.totalEquityCents.toString(),
+    totalDepositedCents: o.totalDepositedCents.toString(),
+    targetCents: o.targetCents?.toString() ?? null,
+    equitySeries: o.equitySeries.map((p) => ({ timestamp: p.timestamp, totalEquityCents: p.totalEquityCents.toString() }))
+  };
+}
+function createLedgerRouter(paymentAdapter) {
+  const router = Router4();
+  router.use(requireAuth);
+  router.get(
+    "/overview",
+    asyncHandler(async (req, res) => {
+      const overview = await getOverview(req.user.id);
+      res.status(200).json(serializeOverview(overview));
+    })
+  );
+  router.post(
+    "/deposit",
+    asyncHandler(async (req, res) => {
+      const { amountCents } = amountSchema.parse(req.body);
+      const overview = await deposit(req.user, paymentAdapter, cents(amountCents));
+      res.status(200).json(serializeOverview(overview));
+    })
+  );
+  router.post(
+    "/withdraw",
+    asyncHandler(async (req, res) => {
+      const { amountCents } = amountSchema.parse(req.body);
+      const overview = await withdraw(req.user, paymentAdapter, cents(amountCents));
+      res.status(200).json(serializeOverview(overview));
+    })
+  );
+  router.get(
+    "/transactions",
+    asyncHandler(async (req, res) => {
+      const transactions = await listTransactions(req.user.id);
+      res.status(200).json(transactions);
+    })
+  );
+  return router;
+}
+
+// src/routes/signals.ts
+import { Router as Router5 } from "express";
 
 // src/services/signalDisclaimer.ts
 var SIGNAL_DISCLAIMER_VERSION = "2026-09-28-draft-v1";
@@ -1115,7 +1392,7 @@ async function getSignal(user, symbol, marketDataAdapter, narrationAdapter) {
 // src/routes/signals.ts
 var CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
 function createSignalsRouter(marketDataAdapter, narrationAdapter) {
-  const router = Router4();
+  const router = Router5();
   router.use(requireAuth);
   router.get(
     "/:base/:quote",
@@ -1173,6 +1450,7 @@ function createApp(deps) {
   app2.use("/auth", createAuthRouter(deps.emailAdapter, deps.appBaseUrl));
   app2.use("/onboarding", createOnboardingRouter(deps.kycAdapter, deps.brokerLinkAdapter, deps.paymentAdapter));
   app2.use("/account", createAccountRouter());
+  app2.use("/account", createLedgerRouter(deps.paymentAdapter));
   app2.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
   app2.use(errorHandler);
   return app2;
@@ -1224,11 +1502,11 @@ function getEmailAdapter() {
 }
 
 // src/adapters/kyc/SimulatorKycAdapter.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 var SimulatorKycAdapter = class {
   provider = "simulator";
   async submitVerification(input) {
-    const providerReference = `sim_${randomUUID()}`;
+    const providerReference = `sim_${randomUUID2()}`;
     const looksLikePlaceholder = /^(test|foo|bar|asdf|xxx)$/i.test(input.fullName.trim()) || input.fullName.trim().length < 3 || input.idNumber.trim().length < 3;
     if (looksLikePlaceholder) {
       return { status: "rejected", providerReference, reason: "Submission looks like placeholder test data." };
@@ -1265,6 +1543,7 @@ function getBrokerLinkAdapter() {
 }
 
 // src/adapters/payment/SimulatorPaymentAdapter.ts
+import { randomUUID as randomUUID3 } from "node:crypto";
 var TRADER_MONTHLY_PRICE_CENTS = 4900;
 var SimulatorPaymentAdapter = class {
   provider = "simulator";
@@ -1276,6 +1555,12 @@ var SimulatorPaymentAdapter = class {
       stripeCustomerId: null,
       stripeSubscriptionId: null
     };
+  }
+  async chargeDeposit(_input) {
+    return { succeeded: true, providerReference: `sim_dep_${randomUUID3()}` };
+  }
+  async payOut(_input) {
+    return { succeeded: true, providerReference: `sim_payout_${randomUUID3()}` };
   }
 };
 

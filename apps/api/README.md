@@ -56,6 +56,24 @@ just resolves through those rather than re-deciding anything itself.
   Never includes `passwordHash`, an MtAccount's `credentialRef`/
   `credentialKind`, or a Subscription's Stripe/processor ids — not just
   unset, not present in the response shape at all.
+- **`routes/ledger.ts`** (`GET /account/overview`, `POST /account/deposit`,
+  `POST /account/withdraw`, `GET /account/transactions`) — investor-track
+  only (2026-09-28). Every number is computed live in
+  `services/ledgerService.ts` by replaying a user's persisted
+  `LedgerTransaction` rows through `@nouveau/core`'s `ledger.ts` functions
+  (`splitDeposit`, `requestWithdrawal`, `completeWithdrawal`,
+  `computeTarget`) — never a stored "current balance" that could drift
+  from the history that's supposed to explain it. A deposit really splits
+  50/50 into custody/at-risk (invariant #2 holds by construction, same as
+  everywhere else `splitDeposit` is used); a withdrawal is rejected with a
+  `422` if it exceeds the real custody balance. **What's still simulated is
+  the payment capture itself** — `PaymentAdapter.chargeDeposit`/`payOut`
+  always succeed on the simulator, so no real bank transfer or card charge
+  happens until a real processor is connected (see "Assumptions flagged").
+  `LedgerTransaction.amountCents` fields are decimal-string bigints, never
+  a native numeric BSON type, same discipline as `@nouveau/core`'s
+  `Cents` — money must never touch a float or an implicit-precision
+  integer type.
 - **`adapters/kyc/`** — `KycAdapter` interface + `SimulatorKycAdapter`
   (approves anything not obviously placeholder data). No real Dojah/Smile
   ID integration yet — the brief presents them as an either/or and doesn't
@@ -241,8 +259,11 @@ the client's project already lives.
      `@nouveau/core`'s `ledger.ts` already assumes Paystack in its own
      comments, so confirm that's still the intended processor before
      building `adapters/payment/`'s real implementation (client needs an
-     account with payout banking set up, plus a recurring price for the
-     `trader_monthly` plan).
+     account with payout banking set up, a recurring price for the
+     `trader_monthly` plan, and real bank-transfer/card charge + payout
+     capability for the investor track's `chargeDeposit`/`payOut` — the
+     ledger and balance math behind `routes/ledger.ts` is already real and
+     correct; only this vendor call is a stand-in).
    - Optional: `ANTHROPIC_API_KEY` for `LLM_NARRATION_PROVIDER=anthropic` —
      narration only, never the decision-maker; `computeSignal`'s
      deterministic bias stays the sole source of the buy/sell/hold call.

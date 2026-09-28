@@ -6,3 +6,4 @@ export { PasswordResetToken, type PasswordResetTokenDocument } from "./models/Pa
 export { LpoaSignature, type LpoaSignatureDocument } from "./models/LpoaSignature";
 export { Subscription, type SubscriptionDocument } from "./models/Subscription";
 export { SignalLog, type SignalLogDocument } from "./models/SignalLog";
+export { LedgerTransaction, type LedgerTransactionDocument } from "./models/LedgerTransaction";

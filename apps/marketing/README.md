@@ -159,27 +159,38 @@ them (a typed URL or stale bookmark, not the real security boundary —
 `@nouveau/api` enforces the equivalent boundary server-side, e.g.
 `GET /signals/*` 403s a non-trader independently of anything here).
 
-**Investor dashboard** — the original deposit/AI-trading product:
-- **Overview** (`/dashboard`) — account summary, an equity chart
-  (`recharts`), and a decision-log-style activity feed.
+**Investor dashboard** — the deposit/AI-trading product, now backed by a
+real ledger (2026-09-28), not demo data:
+- **Overview** (`/dashboard`) — real account summary, a real equity chart
+  (`recharts`, one point per ledger event), and a real recent-activity feed
+  — all from `GET /account/overview` / `GET /account/transactions`
+  (`lib/ledgerApi.ts`), computed live from persisted `LedgerTransaction`
+  rows, never a fabricated figure. Equity only moves when you deposit or
+  withdraw right now — there's no real broker trading yet, so it can't
+  move any other way.
 - **Funding** (`/dashboard/funding`) / **Withdraw** (`/dashboard/withdraw`)
-  — preview-only. Every control is `disabled`, not just style-muted, since
-  there's no payment processor connected — a form that *looked*
-  submittable here could make a real user think they'd actually moved
-  real money when nothing happened. Don't enable these before a real
-  payment flow exists behind them.
-- **Transactions** (`/dashboard/transactions`) / **Trading history**
-  (`/dashboard/history`) — read-only demo tables.
-- **Every number on these pages is demo data**, from
-  `lib/demoDashboardData.ts` — there is no deposit flow, ledger
-  persistence, or broker/market data connection yet (that's Phase 3+). This
-  was a deliberate choice, confirmed with the client rather than assumed:
-  ship the design now (real chart, real layout, real gating logic, real
-  nav) with data that's clearly labeled as illustrative wherever it has to
-  be fake. **The "Example account" banners must stay** on every demo-data
-  page until Phase 3 actually backs them with real numbers; removing one
-  while the data underneath is still fake would misrepresent a real user's
-  own money on a financial platform.
+  — real, enabled forms. A deposit really splits 50/50 into custody/at-risk
+  and persists it (`POST /account/deposit`); a withdrawal really checks
+  against your real custody balance and rejects an over-large amount
+  (`POST /account/withdraw`, 422). **What's still simulated is the payment
+  capture itself** — no real bank transfer or card charge happens until a
+  real payment processor is connected (`apps/api`'s `PaymentAdapter`); the
+  banner on each page says so explicitly and **must stay** until a real
+  processor exists, so a real user is never led to think a real transfer
+  just happened. Don't remove it before that's true.
+- **Transactions** (`/dashboard/transactions`) — real, from
+  `GET /account/transactions`, survives a page reload since it's actually
+  persisted, not client-side state.
+- **Trading history** (`/dashboard/history`) — still demo data
+  (`lib/demoDashboardData.ts`), and deliberately so: without a real broker
+  connection there is no real trade to show, and inventing one would be
+  actively misleading rather than just incomplete. Replace this once real
+  broker trading exists, not before.
+- **The "Example account"/"simulated" banners must stay** on Funding and
+  Withdraw until a real payment processor is connected, and on Trading
+  history until real broker trading exists. Removing one while the data
+  underneath is still fake would misrepresent a real user's own money on a
+  financial platform.
 
 **Trader dashboard** — the self-directed product (2026-09-28):
 - **Analytics** (`/dashboard`, also reachable at `/dashboard/analytics`) —
