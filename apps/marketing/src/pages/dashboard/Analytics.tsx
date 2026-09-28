@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Seo from "@/components/Seo";
-import { TextField, SubmitButton } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
+import { Card, DarkTextField, InfoBanner, PageHeading, SectionHeading } from "./components/DashboardUI";
 import SketchableChart from "./analytics/SketchableChart";
 import { TRADER_PAIRS, getSignal, type SignalResponse } from "@/lib/signalsApi";
 import { ApiError } from "@/lib/api";
@@ -10,6 +10,12 @@ const BIAS_LABEL: Record<SignalResponse["bias"], string> = {
   buy: "Bullish",
   sell: "Bearish",
   hold: "Neutral",
+};
+
+const BIAS_TONE: Record<SignalResponse["bias"], string> = {
+  buy: "text-gain",
+  sell: "text-loss",
+  hold: "text-slate-light",
 };
 
 /**
@@ -55,25 +61,23 @@ export default function Analytics() {
         path="/dashboard/analytics"
       />
 
-      <RiseIn>
-        <div className="border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
-          <strong className="font-text">Trade on your own account.</strong> The chart, sketches, and live analysis
-          below are real. Nouveau never places trades for you — you decide whether and when to act, on your own
-          broker platform.
-        </div>
-      </RiseIn>
+      <InfoBanner>
+        <strong className="font-text">Trade on your own account.</strong> The chart, sketches, and live analysis
+        below are real. Nouveau never places trades for you — you decide whether and when to act, on your own
+        broker platform.
+      </InfoBanner>
 
       {signal?.dataSource === "simulator" && (
-        <RiseIn index={1}>
-          <div className="mt-3 border border-navy-line/30 bg-paper px-4 py-2 text-caption text-slate">
+        <RiseIn index={1} className="mt-3">
+          <div className="border border-navy-line/50 bg-navy px-4 py-2 text-caption text-slate-light">
             Running on simulated market data for now — real prices arrive once a live data provider is connected.
           </div>
         </RiseIn>
       )}
 
-      <h1 className="mt-8 font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 40px)" }}>
-        Trading analytics
-      </h1>
+      <div className="mt-8">
+        <PageHeading>Trading analytics</PageHeading>
+      </div>
 
       <RiseIn index={2} className="mt-6 flex flex-wrap gap-2">
         {TRADER_PAIRS.map((p) => (
@@ -81,10 +85,10 @@ export default function Analytics() {
             key={p.symbol}
             type="button"
             onClick={() => setPairSymbol(p.symbol)}
-            className={`border px-3 py-1.5 text-small transition-colors duration-200 ${
+            className={`border px-3 py-1.5 font-mono-figure text-small transition-colors duration-200 ${
               p.symbol === pairSymbol
-                ? "border-ink bg-ink text-paper"
-                : "border-navy-line/30 text-slate hover:border-ink hover:text-ink"
+                ? "border-gold bg-gold text-navy-deep"
+                : "border-navy-line text-slate-light hover:border-gold hover:text-paper"
             }`}
           >
             {p.symbol}
@@ -96,39 +100,42 @@ export default function Analytics() {
         {signal ? (
           <SketchableChart pairSymbol={pairSymbol} data={signal.priceSeries} decimals={pair.decimals} />
         ) : (
-          <div className="flex h-72 items-center justify-center border border-navy-line/25 bg-paper text-caption text-slate">
+          <Card className="flex h-72 items-center justify-center text-caption text-slate-light">
             {error ?? "Loading chart…"}
-          </div>
+          </Card>
         )}
       </RiseIn>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         <RiseIn index={4}>
-          <h2 className="font-display text-h3 text-ink">Live analysis</h2>
-          <p className="mt-1 text-caption text-slate">{pair.name}</p>
+          <SectionHeading>Live analysis</SectionHeading>
+          <p className="mt-1 text-caption text-slate-light">{pair.name}</p>
 
           {signal ? (
             <>
-              <div className="mt-4 flex items-baseline gap-3 border border-navy-line/25 bg-paper px-4 py-3">
-                <span className="text-caption uppercase tracking-[0.06em] text-slate">Signal</span>
-                <span className="font-display text-h3 text-ink">{BIAS_LABEL[signal.bias]}</span>
-                <span className="text-caption text-slate">({Math.round(signal.confidence * 100)}% confidence)</span>
-              </div>
-              <p className="mt-4 text-body text-ink">{signal.narration}</p>
-              <p className="mt-4 text-caption text-slate">{signal.disclaimer}</p>
+              <Card className="mt-4 flex items-baseline gap-3">
+                <span className="text-caption uppercase tracking-[0.08em] text-slate-light">Signal</span>
+                <span className={`font-display text-h3 ${BIAS_TONE[signal.bias]}`}>{BIAS_LABEL[signal.bias]}</span>
+                <span className="text-caption text-slate-light">({Math.round(signal.confidence * 100)}% confidence)</span>
+              </Card>
+              <p className="mt-4 text-body text-paper">{signal.narration}</p>
+              <p className="mt-4 text-caption text-slate-light">{signal.disclaimer}</p>
             </>
           ) : (
-            <p className="mt-4 text-body text-slate">{error ?? "Loading…"}</p>
+            <p className="mt-4 text-body text-slate-light">{error ?? "Loading…"}</p>
           )}
         </RiseIn>
 
         <RiseIn index={5}>
-          <h2 className="font-display text-h3 text-ink">Place a trade</h2>
-          <p className="mt-1 text-caption text-slate">{pair.symbol}</p>
+          <SectionHeading>Place a trade</SectionHeading>
+          <p className="mt-1 text-caption text-slate-light">{pair.symbol}</p>
 
-          <div className="mt-4 border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
-            <strong className="font-text">Trade on your own broker.</strong> Nouveau doesn&rsquo;t hold your funds
-            or place trades on this account — use the analysis above, then act on your own broker platform.
+          <div className="mt-4">
+            <InfoBanner>
+              <strong className="font-text">Trade on your own broker.</strong> Nouveau doesn&rsquo;t hold your
+              funds or place trades on this account — use the analysis above, then act on your own broker
+              platform.
+            </InfoBanner>
           </div>
 
           <form className="mt-4 space-y-6" aria-disabled="true" noValidate>
@@ -139,7 +146,7 @@ export default function Analytics() {
                 onClick={() => setSide("buy")}
                 aria-pressed={side === "buy"}
                 className={`flex-1 border px-4 py-2.5 text-small ${
-                  side === "buy" ? "border-ink bg-ink text-paper" : "border-navy-line/30 text-slate"
+                  side === "buy" ? "border-gain bg-gain/15 text-gain" : "border-navy-line text-slate-light"
                 }`}
               >
                 Buy
@@ -150,16 +157,22 @@ export default function Analytics() {
                 onClick={() => setSide("sell")}
                 aria-pressed={side === "sell"}
                 className={`flex-1 border px-4 py-2.5 text-small ${
-                  side === "sell" ? "border-ink bg-ink text-paper" : "border-navy-line/30 text-slate"
+                  side === "sell" ? "border-loss bg-loss/15 text-loss" : "border-navy-line text-slate-light"
                 }`}
               >
                 Sell
               </button>
             </div>
-            <TextField label="Lot size" name="lotSize" type="number" placeholder="0.10" disabled />
-            <TextField label="Stop loss" name="stopLoss" type="number" placeholder="Required on every trade" disabled />
-            <TextField label="Take profit (optional)" name="takeProfit" type="number" placeholder="Optional" disabled />
-            <SubmitButton disabled>Place trade</SubmitButton>
+            <DarkTextField label="Lot size" name="lotSize" type="number" placeholder="0.10" disabled />
+            <DarkTextField label="Stop loss" name="stopLoss" type="number" placeholder="Required on every trade" disabled />
+            <DarkTextField label="Take profit (optional)" name="takeProfit" type="number" placeholder="Optional" disabled />
+            <button
+              type="submit"
+              disabled
+              className="w-full cursor-not-allowed bg-navy-line/30 px-6 py-3.5 text-small text-slate-light/70"
+            >
+              Place trade
+            </button>
           </form>
         </RiseIn>
       </div>

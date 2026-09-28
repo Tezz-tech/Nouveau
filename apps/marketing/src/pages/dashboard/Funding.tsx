@@ -1,8 +1,9 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Seo from "@/components/Seo";
-import { TextField, SubmitButton, ErrorBanner } from "@/components/ui/FormField";
+import { Button } from "@/components/ui/Button";
 import RiseIn from "@/components/motion/RiseIn";
+import { DarkErrorBanner, DarkTextField, InfoBanner, PageHeading } from "./components/DashboardUI";
 import { deposit } from "@/lib/ledgerApi";
 import { ApiError } from "@/lib/api";
 
@@ -48,20 +49,18 @@ export default function Funding() {
   return (
     <>
       <Seo title="Fund your account" description="Deposit into your Nouveau account." path="/dashboard/funding" />
-      <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 40px)" }}>
-        Fund your account
-      </h1>
+      <PageHeading>Fund your account</PageHeading>
       <RiseIn index={1} className="mt-6">
-        <div className="border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
+        <InfoBanner>
           <strong className="font-text">Simulated payment.</strong> This deposit is real in your account
           history — it splits into custody and at-risk exactly like a real one would — but no payment processor
           is connected yet, so no real money moves.
-        </div>
+        </InfoBanner>
       </RiseIn>
       <form onSubmit={onSubmit} className="mt-8 max-w-sm space-y-6" noValidate>
-        {error && <ErrorBanner message={error} />}
+        {error && <DarkErrorBanner message={error} />}
         <RiseIn index={2}>
-          <TextField
+          <DarkTextField
             label="Amount (USD)"
             name="amount"
             type="number"
@@ -74,7 +73,9 @@ export default function Funding() {
           />
         </RiseIn>
         <RiseIn index={3}>
-          <SubmitButton disabled={submitting}>{submitting ? "Depositing…" : "Deposit funds"}</SubmitButton>
+          <Button tone="dark" type="submit" disabled={submitting} className="w-full justify-center">
+            {submitting ? "Depositing…" : "Deposit funds"}
+          </Button>
         </RiseIn>
       </form>
     </>

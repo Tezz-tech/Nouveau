@@ -38,7 +38,7 @@ function saveStrokes(pairSymbol: string, strokes: Stroke[]): void {
 function ChartTooltip({ active, payload, decimals }: { active?: boolean; payload?: { value: number }[]; decimals: number }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="border border-navy-line/40 bg-paper px-3 py-2 text-caption text-ink shadow-sm">
+    <div className="border border-navy-line bg-navy px-3 py-2 text-caption text-paper shadow-lg">
       {payload[0]!.value.toFixed(decimals)}
     </div>
   );
@@ -58,7 +58,7 @@ function ToolButton({
       type="button"
       onClick={onClick}
       className={`border px-3 py-1.5 text-caption transition-colors duration-200 ${
-        active ? "border-ink bg-ink text-paper" : "border-navy-line/30 text-slate hover:border-ink hover:text-ink"
+        active ? "border-gold bg-gold text-navy-deep" : "border-navy-line text-slate-light hover:border-gold hover:text-paper"
       }`}
     >
       {children}
@@ -145,7 +145,7 @@ export default function SketchableChart({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-caption text-slate">Sketch trend lines or notes directly on the chart.</p>
+        <p className="text-caption text-slate-light">Sketch trend lines or notes directly on the chart.</p>
         <div className="flex gap-2">
           <ToolButton active={drawMode} onClick={() => setDrawMode((v) => !v)}>
             {drawMode ? "Done sketching" : "Sketch"}
@@ -159,33 +159,33 @@ export default function SketchableChart({
 
       <div
         ref={containerRef}
-        className="relative h-72 border border-navy-line/25 bg-paper p-4"
+        className="relative h-72 border border-navy-line/50 bg-navy p-4"
         style={{ touchAction: drawMode ? "none" : "auto" }}
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8A6D1C" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#8A6D1C" stopOpacity={0} />
+                <stop offset="0%" stopColor="#C9A227" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#C9A227" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#1D3E5C" strokeOpacity={0.12} vertical={false} />
+            <CartesianGrid stroke="#1D3E5C" strokeOpacity={0.5} vertical={false} />
             <XAxis
               dataKey="day"
               tickFormatter={(d: number) => `Day ${d}`}
-              stroke="#5C6E7E"
-              tick={{ fontSize: 12, fill: "#5C6E7E" }}
+              stroke="#1D3E5C"
+              tick={{ fontSize: 12, fill: "#8B98A2" }}
               tickLine={false}
-              axisLine={{ stroke: "#1D3E5C", strokeOpacity: 0.2 }}
+              axisLine={{ stroke: "#1D3E5C" }}
               interval="preserveStartEnd"
               minTickGap={40}
             />
             <YAxis
               domain={["auto", "auto"]}
               tickFormatter={(v: number) => v.toFixed(decimals >= 4 ? 3 : 1)}
-              stroke="#5C6E7E"
-              tick={{ fontSize: 12, fill: "#5C6E7E" }}
+              stroke="#1D3E5C"
+              tick={{ fontSize: 12, fill: "#8B98A2" }}
               tickLine={false}
               axisLine={false}
               width={56}
@@ -194,7 +194,7 @@ export default function SketchableChart({
             <Area
               type="monotone"
               dataKey="price"
-              stroke="#8A6D1C"
+              stroke="#C9A227"
               strokeWidth={2}
               fill="url(#priceFill)"
               animationDuration={700}
@@ -218,7 +218,7 @@ export default function SketchableChart({
                 key={i}
                 points={toPoints(stroke)}
                 fill="none"
-                stroke="#0E1C2B"
+                stroke="#FAFAF7"
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -228,7 +228,7 @@ export default function SketchableChart({
               <polyline
                 points={toPoints(currentStroke)}
                 fill="none"
-                stroke="#0E1C2B"
+                stroke="#FAFAF7"
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"

@@ -25,7 +25,7 @@ function RequireAccountType({ type, children }: { type: AccountType; children: R
     if (mismatched) navigate("/dashboard", { replace: true });
   }, [mismatched, navigate]);
 
-  if (mismatched) return <div className="p-6 text-body text-slate">Loading…</div>;
+  if (mismatched) return <div className="p-6 text-body text-slate-light">Loading…</div>;
   return <>{children}</>;
 }
 

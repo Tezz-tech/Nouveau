@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Seo from "@/components/Seo";
-import { ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
+import { Card, DarkErrorBanner, InfoBanner, PageHeading } from "./components/DashboardUI";
 import { api, ApiError } from "@/lib/api";
 
 interface ProfileSummary {
@@ -17,6 +17,13 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Active",
   past_due: "Past due",
   canceled: "Canceled",
+};
+
+const STATUS_TONE: Record<string, string> = {
+  incomplete: "text-slate-light",
+  active: "text-gain",
+  past_due: "text-loss",
+  canceled: "text-loss",
 };
 
 function formatPrice(priceCents: number, currency: string): string {
@@ -43,36 +50,40 @@ export default function Billing() {
   return (
     <>
       <Seo title="Billing" description="Your Nouveau trader subscription." path="/dashboard/billing" />
-      <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 40px)" }}>
-        Billing
-      </h1>
+      <PageHeading>Billing</PageHeading>
 
       {error && (
         <div className="mt-6">
-          <ErrorBanner message={error} />
+          <DarkErrorBanner message={error} />
         </div>
       )}
 
-      {!profile && !error && <p className="mt-6 text-body text-slate">Loading…</p>}
+      {!profile && !error && <p className="mt-6 text-body text-slate-light">Loading…</p>}
 
       {profile?.subscription && (
-        <RiseIn index={0} className="mt-8 max-w-md space-y-1 border border-navy-line/25 bg-paper px-4 py-3">
-          <p className="text-caption uppercase tracking-[0.06em] text-slate">
-            {PLAN_LABEL[profile.subscription.plan] ?? profile.subscription.plan}
-          </p>
-          <p className="font-display text-h3 text-ink">
-            {formatPrice(profile.subscription.priceCents, profile.subscription.currency)}
-            <span className="text-caption font-text text-slate">/mo</span>
-          </p>
-          <p className="text-caption text-slate">{STATUS_LABEL[profile.subscription.status] ?? profile.subscription.status}</p>
+        <RiseIn index={0} className="mt-8 max-w-md">
+          <Card className="space-y-1">
+            <p className="text-caption uppercase tracking-[0.08em] text-slate-light">
+              {PLAN_LABEL[profile.subscription.plan] ?? profile.subscription.plan}
+            </p>
+            <p className="font-mono-figure text-h3 text-paper">
+              {formatPrice(profile.subscription.priceCents, profile.subscription.currency)}
+              <span className="text-caption font-text text-slate-light">/mo</span>
+            </p>
+            <p className={`text-caption ${STATUS_TONE[profile.subscription.status] ?? "text-slate-light"}`}>
+              {STATUS_LABEL[profile.subscription.status] ?? profile.subscription.status}
+            </p>
+          </Card>
         </RiseIn>
       )}
 
-      {profile && !profile.subscription && <p className="mt-6 text-body text-slate">No subscription on file yet.</p>}
+      {profile && !profile.subscription && <p className="mt-6 text-body text-slate-light">No subscription on file yet.</p>}
 
-      <RiseIn index={1} className="mt-8 max-w-md border border-gold-deep/40 bg-paper-2 px-4 py-3 text-small text-ink">
-        <strong className="font-text">Not live yet.</strong> No payment processor is connected on this build —
-        billing management isn&rsquo;t available yet.
+      <RiseIn index={1} className="mt-8 max-w-md">
+        <InfoBanner>
+          <strong className="font-text">Not live yet.</strong> No payment processor is connected on this build
+          — billing management isn&rsquo;t available yet.
+        </InfoBanner>
       </RiseIn>
     </>
   );

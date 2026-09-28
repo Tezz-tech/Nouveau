@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Seo from "@/components/Seo";
-import { ErrorBanner } from "@/components/ui/FormField";
 import RiseIn from "@/components/motion/RiseIn";
+import { DarkErrorBanner, PageHeading } from "./components/DashboardUI";
 import { api, ApiError } from "@/lib/api";
 
 interface ProfileSummary {
@@ -21,9 +21,9 @@ const KYC_LABEL: Record<ProfileSummary["kycStatus"], string> = {
 
 function Field({ label, value, index }: { label: string; value: string; index: number }) {
   return (
-    <RiseIn index={index} className="border-b border-navy-line/15 py-4 first:pt-0">
-      <dt className="text-caption uppercase tracking-[0.06em] text-slate">{label}</dt>
-      <dd className="mt-1 text-body text-ink">{value}</dd>
+    <RiseIn index={index} className="border-b border-navy-line/40 py-4 first:pt-0">
+      <dt className="text-caption uppercase tracking-[0.08em] text-slate-light">{label}</dt>
+      <dd className="mt-1 text-body text-paper">{value}</dd>
     </RiseIn>
   );
 }
@@ -46,17 +46,15 @@ export default function Profile() {
   return (
     <>
       <Seo title="Profile" description="Your Nouveau account details." path="/dashboard/profile" />
-      <h1 className="font-display text-ink" style={{ fontSize: "clamp(28px, 3.5vw, 40px)" }}>
-        Profile
-      </h1>
+      <PageHeading>Profile</PageHeading>
 
       {error && (
         <div className="mt-6">
-          <ErrorBanner message={error} />
+          <DarkErrorBanner message={error} />
         </div>
       )}
 
-      {!profile && !error && <p className="mt-6 text-body text-slate">Loading…</p>}
+      {!profile && !error && <p className="mt-6 text-body text-slate-light">Loading…</p>}
 
       {profile && (
         <dl className="mt-8 max-w-md">
