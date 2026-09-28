@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import RiseIn from "@/components/motion/RiseIn";
 import { easeHouse, houseTransition } from "@/lib/motion";
+import { useAuth } from "@/lib/AuthContext";
 
 function CheckBadge() {
   const reduced = useReducedMotion();
@@ -27,6 +28,9 @@ function CheckBadge() {
 }
 
 export default function CompleteStep() {
+  const { onboarding } = useAuth();
+  const isTrader = onboarding?.accountType === "trader";
+
   return (
     <div className="space-y-8">
       <CheckBadge />
@@ -34,8 +38,9 @@ export default function CompleteStep() {
         <div className="space-y-3">
           <h2 className="font-display text-h3 text-ink">You&rsquo;re all set.</h2>
           <p className="text-body text-slate">
-            Your account is ready. Funding your account is coming in a later phase of this build — for now, take
-            a look at the dashboard.
+            {isTrader
+              ? "Your account is ready. Your trading analytics tool is live in the dashboard — pair charts, sketching, and live buy/sell analysis on the broker account you linked."
+              : "Your account is ready. Funding your account is coming in a later phase of this build — for now, take a look at the dashboard."}
           </p>
         </div>
       </RiseIn>

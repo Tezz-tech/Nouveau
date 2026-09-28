@@ -9,6 +9,7 @@ import type { EmailAdapter } from "../adapters/email/EmailAdapter";
 const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(10, "Password must be at least 10 characters."),
+  accountType: z.enum(["investor", "trader"]),
 });
 
 const logInSchema = z.object({
@@ -30,8 +31,8 @@ export function createAuthRouter(emailAdapter: EmailAdapter, appBaseUrl: string)
     "/signup",
     authRateLimit,
     asyncHandler(async (req, res) => {
-      const { email, password } = signUpSchema.parse(req.body);
-      const user = await signUp(email, password);
+      const { email, password, accountType } = signUpSchema.parse(req.body);
+      const user = await signUp(email, password, accountType);
       req.session.userId = user.id;
       res.status(201).json({ userId: user.id, email: user.email, onboarding: getOnboardingStatus(user) });
     })

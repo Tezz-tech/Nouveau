@@ -36,3 +36,16 @@ export const defaultRateLimit = rateLimit({
   legacyHeaders: false,
   skip: skipInTest,
 });
+
+/** The trader signal endpoint isn't a brute-force target, but it does call
+ *  a (future) paid market-data vendor per request and could otherwise be
+ *  scripted into a pseudo-algo polling loop — tighter than `defaultRateLimit`
+ *  but loose enough for a person actually checking a few pairs by hand. */
+export const signalsRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many signal requests. Try again shortly." },
+  skip: skipInTest,
+});

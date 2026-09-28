@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { PricePoint } from "@/lib/demoAnalyticsData";
+
+export interface PricePoint {
+  day: number;
+  price: number;
+}
 
 type Stroke = { x: number; y: number }[];
 

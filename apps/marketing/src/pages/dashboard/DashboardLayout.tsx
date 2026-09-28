@@ -8,15 +8,31 @@ import RouteFade from "@/components/motion/RouteFade";
 import { houseTransition } from "@/lib/motion";
 import { useAuth } from "@/lib/AuthContext";
 
-const NAV_ITEMS: { to: string; label: string; end?: boolean }[] = [
+type NavItem = { to: string; label: string; end?: boolean };
+
+/** Investor dashboard is the deposit/AI-trading product built earlier — no
+ *  analytics/signals here, since an investor doesn't self-trade. Trader
+ *  dashboard is the self-directed product: analytics is the home page, and
+ *  there are no deposit-flow pages at all — Nouveau never holds a trader's
+ *  money. */
+const INVESTOR_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Overview", end: true },
-  { to: "/dashboard/analytics", label: "Fundamental Analysis" },
   { to: "/dashboard/funding", label: "Funding" },
   { to: "/dashboard/withdraw", label: "Withdraw" },
   { to: "/dashboard/transactions", label: "Transactions" },
   { to: "/dashboard/history", label: "Trading history" },
   { to: "/dashboard/profile", label: "Profile" },
 ];
+
+const TRADER_NAV_ITEMS: NavItem[] = [
+  { to: "/dashboard", label: "Analytics", end: true },
+  { to: "/dashboard/billing", label: "Billing" },
+  { to: "/dashboard/profile", label: "Profile" },
+];
+
+function navItemsFor(accountType: string | undefined): NavItem[] {
+  return accountType === "trader" ? TRADER_NAV_ITEMS : INVESTOR_NAV_ITEMS;
+}
 
 /** Gates every dashboard page the same way: must be authenticated and have
  *  completed onboarding. The backend enforces the equivalent boundary on
@@ -55,6 +71,8 @@ export default function DashboardLayout() {
     navigate("/login");
   }
 
+  const navItems = navItemsFor(onboarding?.accountType);
+
   return (
     <div className="min-h-[100svh] md:flex">
       <aside className="relative overflow-hidden border-b border-navy-line/15 bg-paper md:w-60 md:shrink-0 md:border-b-0 md:border-r">
@@ -73,7 +91,7 @@ export default function DashboardLayout() {
           </button>
         </div>
         <nav aria-label="Dashboard" className="relative flex gap-1 overflow-x-auto px-4 pb-4 md:flex-col md:gap-0.5 md:pb-6">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

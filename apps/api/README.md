@@ -1,31 +1,71 @@
 # @nouveau/api
 
-Phase 2 of the Nouveau platform: authentication and the onboarding wizard.
-Express + MongoDB (via `@nouveau/db`), sessions (not JWT — `express-session`
-+ `connect-mongo`), and everything provider-specific (KYC, email) behind an
-adapter interface. KYC stays a simulator by choice; email has a real
-`ResendEmailAdapter` alongside the console one, gated behind
-`EMAIL_PROVIDER` so nothing sends real mail without deliberately opting in.
+Phase 2+ of the Nouveau platform: authentication, two account-type onboarding
+tracks, and the trader track's live signal tool. Express + MongoDB (via
+`@nouveau/db`), sessions (not JWT — `express-session` + `connect-mongo`),
+and everything provider-specific (KYC, email, market data, broker linking,
+payments, signal narration) behind an adapter interface.
+
+## Two account types, one API
+
+Every user picks a track at signup (`accountType` on `User`, required,
+immutable in this build) and that choice drives which onboarding steps,
+revenue model, and dashboard data apply — see `@nouveau/core`'s
+`stepsFor`/`defaultRevenueModelFor` for the actual branching logic; this app
+just resolves through those rather than re-deciding anything itself.
+
+- **Investor** — deposits money, Nouveau opens an MT4/5 sub-account and
+  copy-trades the at-risk half, pays via the profit-split revenue model.
+  Onboarding: `account → identity → broker_account → credentials → lpoa`.
+  This is the original Phase 2 flow, unchanged.
+- **Trader** — links their **own** existing MT4/5 account (read-only —
+  never Nouveau's to trade), gets live buy/sell signals computed from real
+  technical indicators, pays a flat subscription. Onboarding:
+  `account → identity → broker_link → credentials → plan` — no `lpoa` at
+  all, since a trader never authorizes Nouveau to trade their money.
 
 ## What this app owns
 
-- **`routes/auth.ts`** — signup, login, logout, session check, password
-  reset request/confirm. Argon2 hashing and envelope encryption come from
-  `@nouveau/security`; nothing here implements crypto itself.
-- **`routes/onboarding.ts`** — the five-step wizard
-  (`GET /onboarding/status`, then one `POST` per step). Step ordering is
-  enforced by `@nouveau/core`'s `canCompleteStep` — the routes don't
-  reimplement that logic, they just surface its `409` when violated.
+- **`routes/auth.ts`** — signup (now takes `accountType`), login, logout,
+  session check, password reset request/confirm. Argon2 hashing and
+  envelope encryption come from `@nouveau/security`; nothing here
+  implements crypto itself.
+- **`routes/onboarding.ts`** — one `GET /onboarding/status` plus a `POST`
+  per step across both tracks (`identity`, `broker-account` XOR
+  `broker-link`, `credentials`, `lpoa` XOR `plan`). Step ordering — and
+  which steps exist at all — are enforced by `@nouveau/core`'s
+  `canCompleteStep` against the user's own track — a route never
+  reimplements that logic, it just surfaces its `409`/`422` when violated.
+  `services/onboardingService.ts`'s `captureCredentials` is shared by both
+  tracks: for a trader it also calls `BrokerLinkAdapter.verifyReadOnlyAccess`
+  before storing anything, since a trader's live signals are scoped to
+  whatever account this creates.
+- **`routes/signals.ts`** (`GET /signals/:base/:quote`) — trader-track only,
+  requires an active subscription, rate-limited
+  (`middleware/rateLimit.ts`'s `signalsRateLimit`). Pulls candles from a
+  `MarketDataAdapter`, computes a bias via `@nouveau/core`'s pure,
+  deterministic `computeSignal` (moving-average/RSI/momentum voting — no
+  ML, no LLM deciding the bias), narrates it via a `NarrationAdapter`, and
+  logs every emission to the append-only `SignalLog` collection
+  (`services/signalDisclaimer.ts` holds the versioned disclaimer text shown
+  alongside every signal, same versioning discipline as
+  `LPOA_DOCUMENT_VERSION`).
 - **`routes/profile.ts`** (`GET /account/profile`) — read-only account
-  summary (email, KYC status, broker account details) for the dashboard's
-  Profile page, the one dashboard section in `apps/marketing` backed by
-  real data rather than demo data. Never includes `passwordHash` or an
-  MtAccount's `credentialRef` (the encrypted MT5 password) — not just
+  summary (email, `accountType`, KYC status, broker account details,
+  subscription for a trader) for the dashboard's Profile/Billing pages.
+  Never includes `passwordHash`, an MtAccount's `credentialRef`/
+  `credentialKind`, or a Subscription's Stripe/processor ids — not just
   unset, not present in the response shape at all.
 - **`adapters/kyc/`** — `KycAdapter` interface + `SimulatorKycAdapter`
   (approves anything not obviously placeholder data). No real Dojah/Smile
   ID integration yet — the brief presents them as an either/or and doesn't
   pick one.
+- **`adapters/marketData/`, `adapters/brokerLink/`, `adapters/payment/`,
+  `adapters/narration/`** — trader-track integrations, each the same
+  interface + safe-simulator-default + env-gated-real-implementation shape
+  as `adapters/kyc/`. All four currently run on their simulator only (see
+  "Assumptions flagged" below for exactly what real credentials each real
+  implementation is waiting on).
 - **`adapters/email/`** — `EmailAdapter` interface + `ConsoleEmailAdapter`
   (logs instead of sending) and `ResendEmailAdapter` (client's chosen
   provider, talks to Resend's REST API directly over `fetch`).
@@ -34,9 +74,9 @@ adapter interface. KYC stays a simulator by choice; email has a real
   email by accident.
 - **`adapters/kms/provider.ts`** — constructs the `LocalKmsProvider` from
   `@nouveau/security` using an env-provided master key.
-- **`services/lpoaDocument.ts`** — placeholder LPOA text + versioned hash.
-  **Not reviewed by counsel — flagged, not to be treated as real legal
-  text.**
+- **`services/lpoaDocument.ts`** — placeholder LPOA text + versioned hash
+  (investor track only). **Not reviewed by counsel — flagged, not to be
+  treated as real legal text.**
 
 ## What this app must never do
 
@@ -52,6 +92,13 @@ adapter interface. KYC stays a simulator by choice; email has a real
   route calls into the service layer, which calls `canCompleteStep`/
   `completeStep` before touching the database — a route must not update
   `onboarding.completedSteps` directly.
+- **Never store a full trading password against a `user_linked` MtAccount.**
+  A trader's account is only ever meant to hold MT4/5's read-only
+  "investor password" (`credentialKind: "investor_password"`) — this is
+  the infrastructure-level reason Nouveau can't place a trade on a trader's
+  account even if the rest of the system were compromised, not just a UI
+  label. `onboardingService.captureCredentials` asserts this pairing
+  explicitly rather than trusting the caller.
 
 ## Environment
 
@@ -59,6 +106,14 @@ Copy `.env.example` to `.env` and fill in real values — `SESSION_SECRET`
 and `KMS_LOCAL_MASTER_KEY` need real random values
 (`openssl rand -base64 32` for the KMS key specifically, since it's
 base64-decoded to exactly 32 bytes).
+
+The trader-track integrations each default to their simulator and don't
+need any env vars set for local dev: `MARKET_DATA_PROVIDER`,
+`BROKER_LINK_PROVIDER`, `PAYMENT_PROVIDER`, `LLM_NARRATION_PROVIDER`. Flip
+one to its real value only once the matching credential exists (see
+"Assumptions flagged") — `config/env.ts` refuses to boot if a real provider
+is selected without its credential, and refuses to boot with
+`TRADING_MODE=live` while *any* of these is still on its simulator.
 
 ## Running
 
@@ -173,6 +228,29 @@ the client's project already lives.
    a partner is signed (Phase 5). This is the one onboarding step most
    likely to need a real rework once a broker is selected — everything else
    in the wizard should be unaffected.
+3. **The trader track (2026-09-28) is architecturally complete but running
+   entirely on simulators** — real signals, real broker verification, and
+   real billing all need a vendor relationship only the client can set up:
+   - **MetaApi** (metaapi.cloud) for `MARKET_DATA_PROVIDER=metaapi` and
+     `BROKER_LINK_PROVIDER=metaapi` — `MtAccount.metaApiId`/`copyFactoryId`
+     already hint this was always the intended vendor, and the same token
+     covers the investor track's copy-trading too. Set `META_API_TOKEN` in
+     `.env` once the client has an account and token — never paste it into
+     chat.
+   - **A payment processor** for `PAYMENT_PROVIDER=real` —
+     `@nouveau/core`'s `ledger.ts` already assumes Paystack in its own
+     comments, so confirm that's still the intended processor before
+     building `adapters/payment/`'s real implementation (client needs an
+     account with payout banking set up, plus a recurring price for the
+     `trader_monthly` plan).
+   - Optional: `ANTHROPIC_API_KEY` for `LLM_NARRATION_PROVIDER=anthropic` —
+     narration only, never the decision-maker; `computeSignal`'s
+     deterministic bias stays the sole source of the buy/sell/hold call.
+   - **Before real users see real signals**: get a compliance/legal read on
+     whether live buy/sell/hold guidance needs licensing or specific
+     disclaimer structuring in the client's jurisdiction —
+     `services/signalDisclaimer.ts`'s text is a draft, not reviewed by
+     counsel, same caveat as the LPOA text above.
 
 ## Resolved
 

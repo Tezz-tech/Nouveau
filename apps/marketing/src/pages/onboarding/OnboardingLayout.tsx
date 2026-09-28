@@ -11,8 +11,10 @@ import { useAuth } from "@/lib/AuthContext";
 const STEP_TO_PATH: Record<string, string> = {
   identity: "/onboarding/identity",
   broker_account: "/onboarding/broker-account",
+  broker_link: "/onboarding/broker-link",
   credentials: "/onboarding/credentials",
   lpoa: "/onboarding/lpoa",
+  plan: "/onboarding/plan",
   complete: "/onboarding/complete",
 };
 

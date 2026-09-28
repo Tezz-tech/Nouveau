@@ -23,8 +23,10 @@ const DashboardModule = lazy(() => import("@/pages/dashboard"));
 import OnboardingLayout from "@/pages/onboarding/OnboardingLayout";
 import IdentityStep from "@/pages/onboarding/steps/IdentityStep";
 import BrokerAccountStep from "@/pages/onboarding/steps/BrokerAccountStep";
+import BrokerLinkStep from "@/pages/onboarding/steps/BrokerLinkStep";
 import CredentialsStep from "@/pages/onboarding/steps/CredentialsStep";
 import LpoaStep from "@/pages/onboarding/steps/LpoaStep";
+import PlanStep from "@/pages/onboarding/steps/PlanStep";
 import CompleteStep from "@/pages/onboarding/steps/CompleteStep";
 
 /** The public site's chrome (header/footer) — everything except the
@@ -70,8 +72,10 @@ export default function App() {
             <Route index element={<Navigate to="/onboarding/identity" replace />} />
             <Route path="identity" element={<IdentityStep />} />
             <Route path="broker-account" element={<BrokerAccountStep />} />
+            <Route path="broker-link" element={<BrokerLinkStep />} />
             <Route path="credentials" element={<CredentialsStep />} />
             <Route path="lpoa" element={<LpoaStep />} />
+            <Route path="plan" element={<PlanStep />} />
             <Route path="complete" element={<CompleteStep />} />
           </Route>
           <Route

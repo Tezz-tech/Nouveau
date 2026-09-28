@@ -63,4 +63,31 @@ describe("MtAccount model", () => {
       MtAccount.create({ userId, broker: "b", login: "l", serverName: "s", status: "not_a_status" })
     ).rejects.toThrow();
   });
+
+  it("defaults ownership to platform_opened (the investor track's shape) when not specified", async () => {
+    const account = await MtAccount.create({ userId, broker: "b", login: "l", serverName: "s" });
+    expect(account.ownership).toBe("platform_opened");
+  });
+
+  it("accepts a user_linked account with an investor_password credentialKind", async () => {
+    const account = await MtAccount.create({
+      userId,
+      broker: "b",
+      login: "l",
+      serverName: "s",
+      ownership: "user_linked",
+      credentialKind: "investor_password",
+    });
+    expect(account.ownership).toBe("user_linked");
+    expect(account.credentialKind).toBe("investor_password");
+  });
+
+  it("rejects an invalid ownership or credentialKind value", async () => {
+    await expect(
+      MtAccount.create({ userId, broker: "b", login: "l", serverName: "s", ownership: "not_a_kind" })
+    ).rejects.toThrow();
+    await expect(
+      MtAccount.create({ userId, broker: "b", login: "l", serverName: "s", credentialKind: "not_a_kind" })
+    ).rejects.toThrow();
+  });
 });

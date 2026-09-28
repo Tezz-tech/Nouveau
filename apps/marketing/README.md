@@ -9,9 +9,9 @@ underlying trading strategy (proprietary by design) while being transparent
 about allocation logic and risk controls.
 
 **This is also the entire frontend, not just the public pages.** Login,
-signup, password reset, the five-step onboarding wizard, and the account
-dashboard live here too, talking to the real `@nouveau/api` backend where
-real data exists — they started out as a separate `apps/web` project
+signup, the onboarding wizard (two tracks — see "Dashboard" below), and the
+account dashboard live here too, talking to the real `@nouveau/api` backend
+where real data exists — they started out as a separate `apps/web` project
 during Phase 2 and were merged back in once that was flagged as the wrong
 call. There is deliberately no second
 frontend app; see the root README's "One frontend, not several."
@@ -108,15 +108,16 @@ src/
   lib/
     motion.ts            centralised motion variants, easing, durations, stagger values
     api.ts               fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
-    AuthContext.tsx      the one source of truth for "am I logged in" / onboarding status
-    demoDashboardData.ts DEMO DATA for most of dashboard/ — see "Dashboard" below
-    demoAnalyticsData.ts DEMO DATA for dashboard/analytics/ — see "Dashboard" below
+    AuthContext.tsx      the one source of truth for "am I logged in" / onboarding status / accountType
+    signalsApi.ts        real API calls to @nouveau/api's GET /signals/:base/:quote — see "Dashboard" below
+    demoDashboardData.ts DEMO DATA for the investor dashboard — see "Dashboard" below
   pages/             Home, Services, About, Support, NotFound — plus the real,
                      functional Login, Signup, ResetPasswordRequest, ResetPasswordConfirm
-    onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/
-                     (IdentityStep, BrokerAccountStep, CredentialsStep, LpoaStep, CompleteStep)
-    dashboard/       DashboardLayout (nav + gating) + Overview, Analytics, Funding, Withdraw,
-                     Transactions, TradingHistory, Profile — see "Dashboard" below
+    onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/ —
+                     shared: IdentityStep, CredentialsStep, CompleteStep; investor-only:
+                     BrokerAccountStep, LpoaStep; trader-only: BrokerLinkStep, PlanStep
+    dashboard/       DashboardLayout (accountType-aware nav + gating) + a shared index.tsx
+                     that also enforces which pages belong to which track — see "Dashboard" below
       analytics/     SketchableChart (chart + freehand drawing overlay) used by Analytics
 public/
   images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
@@ -126,43 +127,41 @@ public/
 
 Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
 `/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
-broker-account, credentials, lpoa, complete), `/dashboard/*` (root/Overview,
-analytics, funding, withdraw, transactions, history, profile). The onboarding and
-dashboard routes render without the site's header/footer (see `App.tsx`'s
-`SiteLayout` split) — they're focused task/app flows, not pages to
-navigate away from mid-step.
+then broker-account+lpoa for an investor OR broker-link+plan for a trader,
+then credentials shared by both, then complete), `/dashboard/*` (root —
+Overview for an investor, Analytics for a trader — plus analytics, funding,
+withdraw, transactions, history, billing, profile, each guarded against the
+account type it doesn't belong to). The onboarding and dashboard routes
+render without the site's header/footer (see `App.tsx`'s `SiteLayout`
+split) — they're focused task/app flows, not pages to navigate away from
+mid-step.
 `/pricing` and `/how-it-works` from an earlier iteration of this site were
 removed along with the reserve-mechanic content model they described.
 
 ## Dashboard
 
 `pages/dashboard/` is a full section, not one page — `DashboardLayout.tsx`
-provides the persistent nav (sidebar on desktop, a scrollable tab strip on
-mobile) and gates every page under it the same way onboarding is gated
-(redirect to `/login` if unauthenticated, redirect to `/onboarding` if it
-isn't complete yet). `index.tsx` wires up the nested routes as one
-`React.lazy`-loaded module (`/dashboard/*` in `App.tsx`) — `recharts` and
-its dependencies add real weight that public marketing visitors shouldn't
-pay for on every page load, only once someone actually opens the
-dashboard.
+provides the persistent nav and gates every page under it the same way
+onboarding is gated (redirect to `/login` if unauthenticated, redirect to
+`/onboarding` if it isn't complete yet). `index.tsx` wires up the nested
+routes as one `React.lazy`-loaded module (`/dashboard/*` in `App.tsx`) —
+`recharts` and its dependencies add real weight that public marketing
+visitors shouldn't pay for on every page load, only once someone actually
+opens the dashboard.
 
+**The dashboard is genuinely two different products sharing one module,**
+picked by the `accountType` chosen at signup (`useAuth()`'s
+`onboarding.accountType`). `DashboardLayout.tsx`'s nav and `index.tsx`'s
+`DashboardHome` branch on it; every track-specific route is wrapped in
+`index.tsx`'s `RequireAccountType`, which redirects the other account type
+back to `/dashboard` rather than rendering a page that doesn't apply to
+them (a typed URL or stale bookmark, not the real security boundary —
+`@nouveau/api` enforces the equivalent boundary server-side, e.g.
+`GET /signals/*` 403s a non-trader independently of anything here).
+
+**Investor dashboard** — the original deposit/AI-trading product:
 - **Overview** (`/dashboard`) — account summary, an equity chart
   (`recharts`), and a decision-log-style activity feed.
-- **Analytics** (`/dashboard/analytics`) — the trading-analytics tool: a
-  pair selector (`lib/demoAnalyticsData.ts`'s `PAIRS`), a price chart with a
-  freehand sketch overlay (`analytics/SketchableChart.tsx`), a "fundamental
-  analysis" panel, and a trade ticket. The chart, pair switching, and
-  sketching are fully real and interactive — strokes are drawn via pointer
-  events, kept in raw pixel coordinates, and persisted per-pair to
-  `localStorage` (key `nouveau:sketch:<PAIR>`), with a Hide/Unhide toggle
-  that keeps the strokes in state without discarding them. The fundamental
-  analysis text and the trade ticket are **not** real: there is no live
-  market-data or broker connection, and no LLM behind the analysis — the
-  banner at the top of the page and the trade ticket's own "Not live yet"
-  notice say so explicitly, and every ticket control is `disabled`, same as
-  Funding/Withdraw below. Don't wire a real broker or LLM into this page
-  without re-confirming with the client first — the brief this was built
-  against was explicit that an LLM must never place trades.
 - **Funding** (`/dashboard/funding`) / **Withdraw** (`/dashboard/withdraw`)
   — preview-only. Every control is `disabled`, not just style-muted, since
   there's no payment processor connected — a form that *looked*
@@ -171,25 +170,47 @@ dashboard.
   payment flow exists behind them.
 - **Transactions** (`/dashboard/transactions`) / **Trading history**
   (`/dashboard/history`) — read-only demo tables.
-- **Profile** (`/dashboard/profile`) — **the one real page.** Fetches
-  `GET /account/profile` from `@nouveau/api` (email, KYC status, broker
-  account summary — never a credential) rather than using
-  `lib/demoDashboardData.ts`. If you add a section that could plausibly be
-  backed by real data already sitting in the database, check
-  `apps/api`'s models before assuming it has to be a demo page too.
+- **Every number on these pages is demo data**, from
+  `lib/demoDashboardData.ts` — there is no deposit flow, ledger
+  persistence, or broker/market data connection yet (that's Phase 3+). This
+  was a deliberate choice, confirmed with the client rather than assumed:
+  ship the design now (real chart, real layout, real gating logic, real
+  nav) with data that's clearly labeled as illustrative wherever it has to
+  be fake. **The "Example account" banners must stay** on every demo-data
+  page until Phase 3 actually backs them with real numbers; removing one
+  while the data underneath is still fake would misrepresent a real user's
+  own money on a financial platform.
 
-**Every other number in this section is demo data**, from
-`lib/demoDashboardData.ts` and, for Analytics, `lib/demoAnalyticsData.ts` —
-there is no deposit flow, ledger persistence, or broker/market data
-connection yet (that's Phase 3+). This was a
-deliberate choice, confirmed with the client rather than assumed: ship the
-design now (real chart, real layout, real gating logic, real nav) with
-data that's clearly labeled as illustrative wherever it has to be fake —
-the same way the original Login/Signup pages were visual-only "design
-preview" pages before Phase 2 made them real. **The "Example account"
-banners must stay** on every demo-data page until Phase 3 actually backs
-them with real numbers; removing one while the data underneath is still
-fake would misrepresent a real user's own money on a financial platform.
+**Trader dashboard** — the self-directed product (2026-09-28):
+- **Analytics** (`/dashboard`, also reachable at `/dashboard/analytics`) —
+  a pair selector, a price chart with a freehand sketch overlay
+  (`analytics/SketchableChart.tsx`), a live-signal panel, and a
+  permanently-disabled trade ticket. The chart, pair switching, signal, and
+  sketching are **real**, backed by `lib/signalsApi.ts`'s calls to
+  `GET /signals/:base/:quote` — see `apps/api/README.md` for what actually
+  computes the bias (deterministic technical indicators, never an LLM).
+  Only the data feed underneath is still a stand-in: a "Running on
+  simulated market data" banner appears whenever the response's
+  `dataSource` says so, and disappears on its own once a real market-data
+  vendor is wired server-side — nothing here needs to change for that. The
+  trade ticket is **permanently** disabled, not a "not live yet"
+  placeholder like Funding/Withdraw above — a trader always executes on
+  their own broker platform, Nouveau never places a trade for this tier,
+  by design.
+- **Billing** (`/dashboard/billing`) — real data (`GET /account/profile`'s
+  `subscription` field), no real payment processor connected yet, so
+  there's no "manage billing" action to offer.
+- Funding/Withdraw/Transactions/Trading history don't exist for a
+  trader — Nouveau never holds a trader's money, so there's nothing to
+  deposit, withdraw, or show a ledger for.
+
+**Shared** — **Profile** (`/dashboard/profile`) fetches
+`GET /account/profile` from `@nouveau/api` (email, `accountType`, KYC
+status, broker account summary, subscription for a trader — never a
+credential) rather than using demo data, for either track. If you add a
+section that could plausibly be backed by real data already sitting in the
+database, check `apps/api`'s models before assuming it has to be a demo
+page too.
 
 ## Changing the palette
 

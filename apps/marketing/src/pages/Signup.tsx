@@ -10,9 +10,49 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { useDelayedFlag } from "@/lib/useDelayedFlag";
 
+type AccountType = "investor" | "trader";
+
+interface TrackOption {
+  value: AccountType;
+  title: string;
+  description: string;
+}
+
+const TRACK_OPTIONS: TrackOption[] = [
+  {
+    value: "investor",
+    title: "I want my money managed",
+    description: "Deposit funds — Nouveau's AI trades the at-risk half for you. You pay via a profit share.",
+  },
+  {
+    value: "trader",
+    title: "I trade myself",
+    description: "Link your own broker account and get live buy/sell analysis. You pay a flat subscription.",
+  },
+];
+
+function TrackTile({ option, selected, onSelect }: { option: TrackOption; selected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={clsx(
+        "flex flex-col gap-1 border px-4 py-3 text-left transition-colors duration-200",
+        selected ? "border-ink bg-paper-2" : "border-navy-line/40 hover:border-navy-line"
+      )}
+    >
+      <span className="text-small font-semibold text-ink">{option.title}</span>
+      <span className="text-caption text-slate">{option.description}</span>
+    </button>
+  );
+}
+
 export default function Signup() {
   const navigate = useNavigate();
   const { refresh } = useAuth();
+  const [accountType, setAccountType] = useState<AccountType | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
@@ -25,12 +65,12 @@ export default function Signup() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (inFlight.current) return;
+    if (inFlight.current || !accountType) return;
     inFlight.current = true;
     setError(null);
     setSubmitting(true);
     try {
-      await api.post("/auth/signup", { email, password });
+      await api.post("/auth/signup", { email, password, accountType });
       await refresh();
       navigate("/onboarding");
     } catch (err) {
@@ -45,7 +85,7 @@ export default function Signup() {
     <>
       <Seo
         title="Open an account"
-        description="Open a Nouveau account and choose the product that fits how you want exposure — Fund Management, Trading Bots, or Trader Intelligence."
+        description="Open a Nouveau account: have your money managed and AI-traded, or trade yourself with live buy/sell analysis on your own broker account."
         path="/signup"
       />
 
@@ -62,6 +102,18 @@ export default function Signup() {
 
             <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
               {error && <ErrorBanner message={error} />}
+
+              <div role="radiogroup" aria-label="Account type" className="grid gap-3 sm:grid-cols-2">
+                {TRACK_OPTIONS.map((option) => (
+                  <TrackTile
+                    key={option.value}
+                    option={option}
+                    selected={accountType === option.value}
+                    onSelect={() => setAccountType(option.value)}
+                  />
+                ))}
+              </div>
+
               <TextField
                 label="Email"
                 name="email"
@@ -113,10 +165,11 @@ export default function Signup() {
                 </span>
               </label>
 
-              <SubmitButton disabled={!acknowledged || submitting}>
+              <SubmitButton disabled={!accountType || !acknowledged || submitting}>
                 {submitting ? "Creating account…" : "Create account"}
               </SubmitButton>
-              {!acknowledged && (
+              {!accountType && <p className="text-caption text-slate">Choose an account type above to continue.</p>}
+              {accountType && !acknowledged && (
                 <p className="text-caption text-slate">Acknowledge the risk above to continue.</p>
               )}
               {isSlow && (

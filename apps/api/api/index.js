@@ -26,60 +26,139 @@ function cents(value) {
 var ZERO_CENTS = cents(0n);
 
 // ../../packages/core/src/onboarding/types.ts
-var ONBOARDING_STEPS = [
-  "account",
-  "identity",
-  "broker_account",
-  "credentials",
-  "lpoa"
-];
+var ONBOARDING_STEPS_BY_TYPE = {
+  investor: ["account", "identity", "broker_account", "credentials", "lpoa"],
+  trader: ["account", "identity", "broker_link", "credentials", "plan"]
+};
+function stepsFor(accountType) {
+  return ONBOARDING_STEPS_BY_TYPE[accountType];
+}
+var ALL_ONBOARDING_STEPS = Array.from(
+  new Set(Object.values(ONBOARDING_STEPS_BY_TYPE).flat())
+);
 var ONBOARDING_STEP_DESCRIPTIONS = {
   account: "Create your login with an email and password.",
   identity: "Confirm your identity, as required by law before you can trade.",
   broker_account: "We open a trading sub-account in your name at our partner broker.",
   credentials: "Your trading account login is encrypted \u2014 no one at Nouveau can read it back.",
-  lpoa: "You authorize our trading desk to manage the at-risk half of your deposit, within limits you set now."
+  lpoa: "You authorize our trading desk to manage the at-risk half of your deposit, within limits you set now.",
+  broker_link: "Link your existing trading account \u2014 read-only, so we can see your activity but never place a trade or move funds.",
+  plan: "Choose the subscription that covers your live trading analysis."
 };
 
 // ../../packages/core/src/onboarding/progress.ts
 var InvalidOnboardingStepError = class extends Error {
   constructor(step, completedSteps) {
     super(
-      `Cannot complete onboarding step "${step}" \u2014 either it's already done, or a required earlier step isn't. Completed so far: [${completedSteps.join(", ")}]`
+      `Cannot complete onboarding step "${step}" \u2014 either it's already done, a required earlier step isn't, or this step doesn't belong to this account's track. Completed so far: [${completedSteps.join(", ")}]`
     );
     this.step = step;
     this.completedSteps = completedSteps;
     this.name = "InvalidOnboardingStepError";
   }
 };
-function nextStep(completedSteps) {
-  for (const step of ONBOARDING_STEPS) {
+function nextStep(steps, completedSteps) {
+  for (const step of steps) {
     if (!completedSteps.includes(step)) return step;
   }
   return "complete";
 }
-function canCompleteStep(step, completedSteps) {
+function canCompleteStep(steps, step, completedSteps) {
   if (completedSteps.includes(step)) return false;
-  const index = ONBOARDING_STEPS.indexOf(step);
-  const requiredPriorSteps = ONBOARDING_STEPS.slice(0, index);
+  const index = steps.indexOf(step);
+  if (index === -1) return false;
+  const requiredPriorSteps = steps.slice(0, index);
   return requiredPriorSteps.every((s) => completedSteps.includes(s));
 }
-function completeStep(step, completedSteps) {
-  if (!canCompleteStep(step, completedSteps)) {
+function completeStep(steps, step, completedSteps) {
+  if (!canCompleteStep(steps, step, completedSteps)) {
     throw new InvalidOnboardingStepError(step, completedSteps);
   }
   return [...completedSteps, step];
 }
-function progressFraction(completedSteps) {
-  const validCompleted = completedSteps.filter((s) => ONBOARDING_STEPS.includes(s));
-  return validCompleted.length / ONBOARDING_STEPS.length;
+function progressFraction(steps, completedSteps) {
+  const validCompleted = completedSteps.filter((s) => steps.includes(s));
+  return validCompleted.length / steps.length;
+}
+
+// ../../packages/core/src/signals/indicators.ts
+function movingAverage(closes, period) {
+  if (period <= 0) throw new RangeError("period must be positive");
+  if (closes.length < period) {
+    throw new RangeError(`movingAverage needs at least ${period} closes, got ${closes.length}`);
+  }
+  const window = closes.slice(closes.length - period);
+  return window.reduce((sum2, v) => sum2 + v, 0) / period;
+}
+function rsi(closes, period = 14) {
+  if (period <= 0) throw new RangeError("period must be positive");
+  if (closes.length < period + 1) {
+    throw new RangeError(`rsi needs at least ${period + 1} closes, got ${closes.length}`);
+  }
+  const window = closes.slice(closes.length - (period + 1));
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i < window.length; i++) {
+    const change = window[i] - window[i - 1];
+    if (change > 0) gains += change;
+    else losses += -change;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return avgGain === 0 ? 50 : 100;
+  const relativeStrength = avgGain / avgLoss;
+  return 100 - 100 / (1 + relativeStrength);
+}
+function momentum(closes, period) {
+  if (period <= 0) throw new RangeError("period must be positive");
+  if (closes.length < period + 1) {
+    throw new RangeError(`momentum needs at least ${period + 1} closes, got ${closes.length}`);
+  }
+  const past = closes[closes.length - 1 - period];
+  const current = closes[closes.length - 1];
+  if (past === 0) throw new RangeError("cannot compute momentum from a zero base price");
+  return (current - past) / past * 100;
+}
+
+// ../../packages/core/src/signals/computeSignal.ts
+var SHORT_MA_PERIOD = 10;
+var LONG_MA_PERIOD = 30;
+var RSI_PERIOD = 14;
+var MOMENTUM_PERIOD = 10;
+var RSI_OVERBOUGHT = 70;
+var RSI_OVERSOLD = 30;
+var MIN_CANDLES_FOR_SIGNAL = LONG_MA_PERIOD + 1;
+function computeSignal(candles) {
+  if (candles.length < MIN_CANDLES_FOR_SIGNAL) {
+    throw new RangeError(`computeSignal needs at least ${MIN_CANDLES_FOR_SIGNAL} candles, got ${candles.length}`);
+  }
+  const closes = candles.map((c) => c.close);
+  const shortMovingAverage = movingAverage(closes, SHORT_MA_PERIOD);
+  const longMovingAverage = movingAverage(closes, LONG_MA_PERIOD);
+  const rsiValue = rsi(closes, RSI_PERIOD);
+  const momentumValue = momentum(closes, MOMENTUM_PERIOD);
+  const trendVote = Math.sign(shortMovingAverage - longMovingAverage);
+  const rsiVote = rsiValue >= RSI_OVERBOUGHT ? -1 : rsiValue <= RSI_OVERSOLD ? 1 : 0;
+  const momentumVote = Math.sign(momentumValue);
+  const score = trendVote + rsiVote + momentumVote;
+  const bias = score > 0 ? "buy" : score < 0 ? "sell" : "hold";
+  const confidence = Math.abs(score) / 3;
+  return {
+    bias,
+    confidence,
+    components: { shortMovingAverage, longMovingAverage, rsi: rsiValue, momentum: momentumValue }
+  };
 }
 
 // ../../packages/db/src/models/User.ts
 var onboardingSchema = new Schema(
   {
     completedSteps: {
-      type: [{ type: String, enum: ONBOARDING_STEPS }],
+      // Validated against the union of both tracks' steps, not one track's
+      // list — which specific steps are valid in what order is enforced by
+      // @nouveau/core's canCompleteStep against the user's own accountType,
+      // not by this schema. This enum only rejects outright garbage.
+      type: [{ type: String, enum: ALL_ONBOARDING_STEPS }],
       default: []
     }
   },
@@ -102,6 +181,16 @@ var userSchema = new Schema(
       required: true,
       select: false
       // never returned by a plain `.find()`/`.findOne()` — must opt in with `.select("+passwordHash")`
+    },
+    /** Decided once at signup, never changed by the API in Phase 1 — picks
+     *  which onboarding-step sequence and default revenue model apply (see
+     *  @nouveau/core's `stepsFor`/`defaultRevenueModelFor`). "investor"
+     *  deposits money and Nouveau trades it for them; "trader" links their
+     *  own broker account and trades it themselves off Nouveau's signals. */
+    accountType: {
+      type: String,
+      enum: ["investor", "trader"],
+      required: true
     },
     kycStatus: {
       type: String,
@@ -140,11 +229,33 @@ var mtAccountSchema = new Schema2(
     broker: { type: String, required: true },
     login: { type: String, required: true },
     serverName: { type: String, required: true },
+    /** Who opened this account. "platform_opened" (investor track) — Nouveau
+     *  created it at a partner broker and needs full trading access to
+     *  copy-trade into it. "user_linked" (trader track) — the user's own
+     *  pre-existing account, connected read-only for analysis; Nouveau must
+     *  never gain trading access to one of these. */
+    ownership: {
+      type: String,
+      enum: ["platform_opened", "user_linked"],
+      required: true,
+      default: "platform_opened"
+    },
     /** Set once the credential-capture onboarding step completes. Absent
      *  before that — never an empty-string placeholder, which could be
      *  mistaken for "encrypted empty password" rather than "not captured
      *  yet." */
     credentialRef: { type: encryptedSecretSchema, required: false },
+    /** What kind of password `credentialRef` actually encrypts. A
+     *  "user_linked" account must only ever carry "investor_password" — MT4/5's
+     *  own built-in read-only credential, which cannot place a trade or move
+     *  funds even if this system were fully compromised. Enforced in
+     *  apps/api's onboardingService (not just this schema) by rejecting a
+     *  "trading_password" write against a "user_linked" account. */
+    credentialKind: {
+      type: String,
+      enum: ["trading_password", "investor_password"],
+      required: false
+    },
     metaApiId: { type: String, required: false },
     copyFactoryId: { type: String, required: false },
     status: {
@@ -191,6 +302,43 @@ var lpoaSignatureSchema = new Schema4(
 );
 var LpoaSignature = model4("LpoaSignature", lpoaSignatureSchema);
 
+// ../../packages/db/src/models/Subscription.ts
+import { Schema as Schema5, model as model5 } from "mongoose";
+var subscriptionSchema = new Schema5(
+  {
+    userId: { type: Schema5.Types.ObjectId, ref: "User", required: true, index: true },
+    plan: { type: String, enum: ["trader_monthly"], required: true },
+    status: {
+      type: String,
+      enum: ["incomplete", "active", "past_due", "canceled"],
+      default: "incomplete",
+      required: true
+    },
+    priceCents: { type: Number, required: true },
+    currency: { type: String, default: "usd", required: true },
+    stripeCustomerId: { type: String, required: false, default: null },
+    stripeSubscriptionId: { type: String, required: false, default: null },
+    currentPeriodEnd: { type: Date, required: false, default: null }
+  },
+  { timestamps: true }
+);
+var Subscription = model5("Subscription", subscriptionSchema);
+
+// ../../packages/db/src/models/SignalLog.ts
+import { Schema as Schema6, model as model6 } from "mongoose";
+var signalLogSchema = new Schema6(
+  {
+    userId: { type: Schema6.Types.ObjectId, ref: "User", required: true, index: true },
+    symbol: { type: String, required: true },
+    bias: { type: String, enum: ["buy", "sell", "hold"], required: true },
+    confidence: { type: Number, required: true, min: 0, max: 1 },
+    narration: { type: String, required: true },
+    disclaimerVersion: { type: String, required: true }
+  },
+  { timestamps: true }
+);
+var SignalLog = model6("SignalLog", signalLogSchema);
+
 // src/config/env.ts
 import { z } from "zod";
 import "dotenv/config";
@@ -217,11 +365,42 @@ var envSchema = z.object({
    *  cross-site fetch, which would otherwise make login silently fail in
    *  production while working fine in dev. "none" forces `secure: true`
    *  regardless of NODE_ENV, since browsers require that combination. */
-  COOKIE_SAME_SITE: z.enum(["lax", "none"]).default("lax")
+  COOKIE_SAME_SITE: z.enum(["lax", "none"]).default("lax"),
+  /** Trader-track integrations. Every one of these defaults to a safe,
+   *  synthetic-data simulator — the same "build the seam, default to a
+   *  stub" discipline as EMAIL_PROVIDER above — until the client supplies
+   *  real vendor credentials (see apps/marketing's README for what each
+   *  real value needs). `metaapi` is the existing hinted vendor
+   *  (`MtAccount.metaApiId`/`copyFactoryId`) for both market data and
+   *  broker-account linking; the real payment value name is a
+   *  placeholder — `packages/core/src/ledger.ts` already assumes
+   *  Paystack elsewhere in this project, so confirm the processor before
+   *  wiring a real PaymentAdapter. */
+  MARKET_DATA_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+  BROKER_LINK_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+  PAYMENT_PROVIDER: z.enum(["simulator", "real"]).default("simulator"),
+  LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
+  META_API_TOKEN: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional()
 }).refine((env2) => env2.EMAIL_PROVIDER !== "resend" || Boolean(env2.RESEND_API_KEY && env2.EMAIL_FROM), {
   message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
   path: ["EMAIL_PROVIDER"]
-});
+}).refine((env2) => env2.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env2.META_API_TOKEN), {
+  message: "META_API_TOKEN is required when MARKET_DATA_PROVIDER=metaapi",
+  path: ["MARKET_DATA_PROVIDER"]
+}).refine((env2) => env2.BROKER_LINK_PROVIDER !== "metaapi" || Boolean(env2.META_API_TOKEN), {
+  message: "META_API_TOKEN is required when BROKER_LINK_PROVIDER=metaapi",
+  path: ["BROKER_LINK_PROVIDER"]
+}).refine((env2) => env2.LLM_NARRATION_PROVIDER !== "anthropic" || Boolean(env2.ANTHROPIC_API_KEY), {
+  message: "ANTHROPIC_API_KEY is required when LLM_NARRATION_PROVIDER=anthropic",
+  path: ["LLM_NARRATION_PROVIDER"]
+}).refine(
+  (env2) => env2.TRADING_MODE !== "live" || env2.MARKET_DATA_PROVIDER !== "simulator" && env2.BROKER_LINK_PROVIDER !== "simulator" && env2.PAYMENT_PROVIDER !== "simulator",
+  {
+    message: "TRADING_MODE=live cannot run on simulated market data, broker linking, or payments \u2014 set MARKET_DATA_PROVIDER/BROKER_LINK_PROVIDER/PAYMENT_PROVIDER to a real provider first.",
+    path: ["TRADING_MODE"]
+  }
+);
 var cached;
 function getEnv() {
   if (!cached) {
@@ -281,6 +460,14 @@ var defaultRateLimit = rateLimit({
   limit: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipInTest
+});
+var signalsRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1e3,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many signal requests. Try again shortly." },
   skip: skipInTest
 });
 
@@ -381,7 +568,7 @@ function verifyTokenHash(token, storedHash) {
 
 // src/services/authService.ts
 var RESET_TOKEN_TTL_MS = 60 * 60 * 1e3;
-async function signUp(email, password) {
+async function signUp(email, password, accountType) {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     throw new HttpError(409, "Could not create an account with that email.");
@@ -390,6 +577,7 @@ async function signUp(email, password) {
   const user = await User.create({
     email,
     passwordHash,
+    accountType,
     onboarding: { completedSteps: ["account"] }
   });
   return user;
@@ -526,12 +714,14 @@ function computeLpoaDocumentHash() {
 
 // src/services/onboardingService.ts
 function getOnboardingStatus(user) {
+  const steps = stepsFor(user.accountType);
   const completedSteps = getCompletedOnboardingSteps(user);
   return {
+    accountType: user.accountType,
     completedSteps,
-    nextStep: nextStep(completedSteps),
-    progressFraction: progressFraction(completedSteps),
-    steps: ONBOARDING_STEPS.map((step) => ({
+    nextStep: nextStep(steps, completedSteps),
+    progressFraction: progressFraction(steps, completedSteps),
+    steps: steps.map((step) => ({
       step,
       description: ONBOARDING_STEP_DESCRIPTIONS[step],
       completed: completedSteps.includes(step)
@@ -539,15 +729,17 @@ function getOnboardingStatus(user) {
   };
 }
 function assertCanCompleteStep(user, step) {
+  const steps = stepsFor(user.accountType);
   const completedSteps = getCompletedOnboardingSteps(user);
-  if (!canCompleteStep(step, completedSteps)) {
+  if (!canCompleteStep(steps, step, completedSteps)) {
     throw new HttpError(409, `Cannot complete the "${step}" step right now \u2014 check /onboarding/status for what's next.`);
   }
   return completedSteps;
 }
 async function markStepComplete(user, step) {
+  const steps = stepsFor(user.accountType);
   const completedSteps = getCompletedOnboardingSteps(user);
-  user.onboarding.completedSteps = completeStep(step, completedSteps);
+  user.onboarding.completedSteps = completeStep(steps, step, completedSteps);
   await user.save();
 }
 async function submitIdentity(user, kyc, submission) {
@@ -569,18 +761,47 @@ async function createBrokerAccount(user, input) {
     broker: input.broker,
     login: input.login,
     serverName: input.serverName,
+    ownership: "platform_opened",
     status: "pending"
   });
   await markStepComplete(user, "broker_account");
 }
-async function captureCredentials(user, mt5Password) {
+async function linkBrokerAccount(user, input) {
+  assertCanCompleteStep(user, "broker_link");
+  await MtAccount.create({
+    userId: user._id,
+    broker: input.broker,
+    login: input.login,
+    serverName: input.serverName,
+    ownership: "user_linked",
+    status: "pending"
+  });
+  await markStepComplete(user, "broker_link");
+}
+async function captureCredentials(user, brokerLink, mt5Password) {
   assertCanCompleteStep(user, "credentials");
   const account = await MtAccount.findOne({ userId: user._id }).sort({ createdAt: -1 });
   if (!account) {
     throw new HttpError(409, "No broker account found \u2014 complete the broker account step first.");
   }
+  if (account.ownership === "user_linked" !== (user.accountType === "trader")) {
+    throw new HttpError(409, "Account/credential mismatch \u2014 cannot continue.");
+  }
+  if (account.ownership === "user_linked") {
+    const result = await brokerLink.verifyReadOnlyAccess({
+      broker: account.broker,
+      login: account.login,
+      serverName: account.serverName,
+      investorPassword: mt5Password
+    });
+    if (!result.verified) {
+      throw new HttpError(422, result.reason ?? "Couldn't verify that broker account.");
+    }
+    account.status = "active";
+  }
   const encrypted = await encryptSecret(mt5Password, getKmsProvider());
   account.credentialRef = encrypted;
+  account.credentialKind = account.ownership === "user_linked" ? "investor_password" : "trading_password";
   await account.save();
   await markStepComplete(user, "credentials");
 }
@@ -600,11 +821,27 @@ async function signLpoa(user, input) {
   });
   await markStepComplete(user, "lpoa");
 }
+var TRADER_MONTHLY_PLAN = "trader_monthly";
+async function selectPlan(user, payment) {
+  assertCanCompleteStep(user, "plan");
+  const result = await payment.createSubscription({ userId: user.id, plan: TRADER_MONTHLY_PLAN });
+  await Subscription.create({
+    userId: user._id,
+    plan: TRADER_MONTHLY_PLAN,
+    status: result.status,
+    priceCents: result.priceCents,
+    currency: result.currency,
+    stripeCustomerId: result.stripeCustomerId,
+    stripeSubscriptionId: result.stripeSubscriptionId
+  });
+  await markStepComplete(user, "plan");
+}
 
 // src/routes/auth.ts
 var signUpSchema = z2.object({
   email: z2.string().email(),
-  password: z2.string().min(10, "Password must be at least 10 characters.")
+  password: z2.string().min(10, "Password must be at least 10 characters."),
+  accountType: z2.enum(["investor", "trader"])
 });
 var logInSchema = z2.object({
   email: z2.string().email(),
@@ -621,8 +858,8 @@ function createAuthRouter(emailAdapter, appBaseUrl) {
     "/signup",
     authRateLimit,
     asyncHandler(async (req, res) => {
-      const { email, password } = signUpSchema.parse(req.body);
-      const user = await signUp(email, password);
+      const { email, password, accountType } = signUpSchema.parse(req.body);
+      const user = await signUp(email, password, accountType);
       req.session.userId = user.id;
       res.status(201).json({ userId: user.id, email: user.email, onboarding: getOnboardingStatus(user) });
     })
@@ -714,13 +951,21 @@ var brokerAccountSchema = z3.object({
   login: z3.string().min(1),
   serverName: z3.string().min(1)
 });
+var brokerLinkSchema = z3.object({
+  broker: z3.string().min(1),
+  login: z3.string().min(1),
+  serverName: z3.string().min(1)
+});
 var credentialsSchema = z3.object({
   mt5Password: z3.string().min(1)
 });
 var lpoaSchema = z3.object({
   signedName: z3.string().min(3)
 });
-function createOnboardingRouter(kycAdapter) {
+var planSchema = z3.object({
+  plan: z3.literal("trader_monthly")
+});
+function createOnboardingRouter(kycAdapter, brokerLinkAdapter, paymentAdapter) {
   const router = Router2();
   router.use(requireAuth);
   router.get("/status", (req, res) => {
@@ -746,10 +991,18 @@ function createOnboardingRouter(kycAdapter) {
     })
   );
   router.post(
+    "/broker-link",
+    asyncHandler(async (req, res) => {
+      const input = brokerLinkSchema.parse(req.body);
+      await linkBrokerAccount(req.user, input);
+      res.status(200).json(getOnboardingStatus(req.user));
+    })
+  );
+  router.post(
     "/credentials",
     asyncHandler(async (req, res) => {
       const { mt5Password } = credentialsSchema.parse(req.body);
-      await captureCredentials(req.user, mt5Password);
+      await captureCredentials(req.user, brokerLinkAdapter, mt5Password);
       res.status(200).json(getOnboardingStatus(req.user));
     })
   );
@@ -765,6 +1018,14 @@ function createOnboardingRouter(kycAdapter) {
       res.status(200).json(getOnboardingStatus(req.user));
     })
   );
+  router.post(
+    "/plan",
+    asyncHandler(async (req, res) => {
+      planSchema.parse(req.body);
+      await selectPlan(req.user, paymentAdapter);
+      res.status(200).json(getOnboardingStatus(req.user));
+    })
+  );
   return router;
 }
 
@@ -774,11 +1035,14 @@ import { Router as Router3 } from "express";
 // src/services/profileService.ts
 async function getProfileSummary(user) {
   const account = await MtAccount.findOne({ userId: user._id }).sort({ createdAt: -1 });
+  const subscription = user.accountType === "trader" ? await Subscription.findOne({ userId: user._id }).sort({ createdAt: -1 }) : null;
   return {
     email: user.email,
+    accountType: user.accountType,
     kycStatus: user.kycStatus,
     memberSince: user.get("createdAt").toISOString(),
-    brokerAccount: account ? { broker: account.broker, login: account.login, serverName: account.serverName, status: account.status } : null
+    brokerAccount: account ? { broker: account.broker, login: account.login, serverName: account.serverName, ownership: account.ownership, status: account.status } : null,
+    subscription: subscription ? { plan: subscription.plan, status: subscription.status, priceCents: subscription.priceCents, currency: subscription.currency } : null
   };
 }
 
@@ -790,6 +1054,70 @@ function createAccountRouter() {
     "/profile",
     asyncHandler(async (req, res) => {
       res.status(200).json(await getProfileSummary(req.user));
+    })
+  );
+  return router;
+}
+
+// src/routes/signals.ts
+import { Router as Router4 } from "express";
+
+// src/services/signalDisclaimer.ts
+var SIGNAL_DISCLAIMER_VERSION = "2026-09-28-draft-v1";
+var SIGNAL_DISCLAIMER_TEXT = "This is automated commentary on market data, generated from technical indicators \u2014 it is not personalized financial advice, and Nouveau does not place trades on your behalf. Markets can move against any signal shown here. You decide whether, when, and how to act on it, on your own broker account.";
+
+// src/services/signalService.ts
+var CANDLES_REQUESTED = MIN_CANDLES_FOR_SIGNAL + 10;
+async function getSignal(user, symbol, marketDataAdapter, narrationAdapter) {
+  const candles = await marketDataAdapter.getRecentCandles(symbol, CANDLES_REQUESTED);
+  if (candles.length < MIN_CANDLES_FOR_SIGNAL) {
+    throw new HttpError(503, `Not enough market data for ${symbol} yet \u2014 try again shortly.`);
+  }
+  const signal = computeSignal(candles);
+  const narration = await narrationAdapter.narrate(signal, symbol);
+  await SignalLog.create({
+    userId: user._id,
+    symbol,
+    bias: signal.bias,
+    confidence: signal.confidence,
+    narration,
+    disclaimerVersion: SIGNAL_DISCLAIMER_VERSION
+  });
+  return {
+    symbol,
+    bias: signal.bias,
+    confidence: signal.confidence,
+    narration,
+    disclaimer: SIGNAL_DISCLAIMER_TEXT,
+    priceSeries: candles.map((c, day) => ({ day, price: c.close })),
+    dataSource: marketDataAdapter.provider
+  };
+}
+
+// src/routes/signals.ts
+var CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+function createSignalsRouter(marketDataAdapter, narrationAdapter) {
+  const router = Router4();
+  router.use(requireAuth);
+  router.get(
+    "/:base/:quote",
+    signalsRateLimit,
+    asyncHandler(async (req, res) => {
+      const user = req.user;
+      if (user.accountType !== "trader") {
+        throw new HttpError(403, "Live trading signals are only available on the trader track.");
+      }
+      const subscription = await Subscription.findOne({ userId: user._id }).sort({ createdAt: -1 });
+      if (!subscription || subscription.status !== "active") {
+        throw new HttpError(402, "An active subscription is required to see live signals.");
+      }
+      const base = req.params.base.toUpperCase();
+      const quote = req.params.quote.toUpperCase();
+      if (!CURRENCY_CODE_PATTERN.test(base) || !CURRENCY_CODE_PATTERN.test(quote)) {
+        throw new HttpError(400, "Symbol must look like EUR/USD.");
+      }
+      const result = await getSignal(user, `${base}/${quote}`, marketDataAdapter, narrationAdapter);
+      res.status(200).json(result);
     })
   );
   return router;
@@ -825,8 +1153,9 @@ function createApp(deps) {
     res.status(200).json({ status: "ok", tradingMode: env2.TRADING_MODE });
   });
   app2.use("/auth", createAuthRouter(deps.emailAdapter, deps.appBaseUrl));
-  app2.use("/onboarding", createOnboardingRouter(deps.kycAdapter));
+  app2.use("/onboarding", createOnboardingRouter(deps.kycAdapter, deps.brokerLinkAdapter, deps.paymentAdapter));
   app2.use("/account", createAccountRouter());
+  app2.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
   app2.use(errorHandler);
   return app2;
 }
@@ -890,12 +1219,159 @@ var SimulatorKycAdapter = class {
   }
 };
 
+// src/adapters/brokerLink/SimulatorBrokerLinkAdapter.ts
+var SimulatorBrokerLinkAdapter = class {
+  provider = "simulator";
+  async verifyReadOnlyAccess(input) {
+    const looksLikePlaceholder = /^(test|foo|bar|asdf|xxx)$/i.test(input.login.trim()) || input.investorPassword.trim().length < 4;
+    if (looksLikePlaceholder) {
+      return { verified: false, reason: "Couldn't verify that account \u2014 check the login and investor password." };
+    }
+    return { verified: true };
+  }
+};
+
+// src/adapters/brokerLink/provider.ts
+var cached4;
+function getBrokerLinkAdapter() {
+  if (!cached4) {
+    const env2 = getEnv();
+    if (env2.BROKER_LINK_PROVIDER === "metaapi") {
+      throw new Error(
+        "BROKER_LINK_PROVIDER=metaapi has no real adapter implementation yet \u2014 this is a Phase 2 addition once a MetaApi token is confirmed working."
+      );
+    }
+    cached4 = new SimulatorBrokerLinkAdapter();
+  }
+  return cached4;
+}
+
+// src/adapters/payment/SimulatorPaymentAdapter.ts
+var TRADER_MONTHLY_PRICE_CENTS = 4900;
+var SimulatorPaymentAdapter = class {
+  provider = "simulator";
+  async createSubscription(_input) {
+    return {
+      status: "active",
+      priceCents: TRADER_MONTHLY_PRICE_CENTS,
+      currency: "usd",
+      stripeCustomerId: null,
+      stripeSubscriptionId: null
+    };
+  }
+};
+
+// src/adapters/payment/provider.ts
+var cached5;
+function getPaymentAdapter() {
+  if (!cached5) {
+    const env2 = getEnv();
+    if (env2.PAYMENT_PROVIDER === "real") {
+      throw new Error(
+        "PAYMENT_PROVIDER=real has no adapter implementation yet \u2014 confirm the real processor (Paystack? Stripe?) before wiring this, per the note in config/env.ts."
+      );
+    }
+    cached5 = new SimulatorPaymentAdapter();
+  }
+  return cached5;
+}
+
+// src/adapters/marketData/SimulatorMarketDataAdapter.ts
+function seedFor(symbol) {
+  let hash2 = 0;
+  for (let i = 0; i < symbol.length; i++) {
+    hash2 = (hash2 * 31 + symbol.charCodeAt(i)) % 1e5;
+  }
+  return hash2 % 20 + 1;
+}
+function basePriceFor(symbol) {
+  return symbol.toUpperCase().includes("JPY") ? 150 : 1.1;
+}
+var SimulatorMarketDataAdapter = class {
+  provider = "simulator";
+  async getRecentCandles(symbol, count) {
+    const seed = seedFor(symbol);
+    const basePrice = basePriceFor(symbol);
+    const volatility = basePrice * 6e-3;
+    const now = Date.now();
+    const candles = [];
+    for (let i = 0; i < count; i++) {
+      const t = i / count;
+      const drift = Math.sin(seed) * 0.4 * t;
+      const wave1 = Math.sin(t * Math.PI * (2 + seed)) * 0.5;
+      const wave2 = Math.sin(t * Math.PI * (7 + seed * 1.7)) * 0.18;
+      const close = basePrice + volatility * (drift + wave1 + wave2);
+      const open = i === 0 ? close : candles[i - 1].close;
+      const high = Math.max(open, close) + volatility * 0.1;
+      const low = Math.min(open, close) - volatility * 0.1;
+      candles.push({
+        timestamp: now - (count - i) * 6e4,
+        open,
+        high,
+        low,
+        close
+      });
+    }
+    return candles;
+  }
+};
+
+// src/adapters/marketData/provider.ts
+var cached6;
+function getMarketDataAdapter() {
+  if (!cached6) {
+    const env2 = getEnv();
+    if (env2.MARKET_DATA_PROVIDER === "metaapi") {
+      throw new Error(
+        "MARKET_DATA_PROVIDER=metaapi has no real adapter implementation yet \u2014 this is a Phase 2 addition once a MetaApi token is confirmed working."
+      );
+    }
+    cached6 = new SimulatorMarketDataAdapter();
+  }
+  return cached6;
+}
+
+// src/adapters/narration/TemplatedNarrationAdapter.ts
+var BIAS_PHRASE = {
+  buy: "leaning bullish",
+  sell: "leaning bearish",
+  hold: "showing no clear direction"
+};
+var TemplatedNarrationAdapter = class {
+  provider = "template";
+  async narrate(signal, symbol) {
+    const { bias, confidence, components } = signal;
+    const confidencePct = Math.round(confidence * 100);
+    const trendWord = components.shortMovingAverage > components.longMovingAverage ? "above" : "below";
+    return `${symbol} is ${BIAS_PHRASE[bias]} (${confidencePct}% of the indicators we track agree). The short-term average is currently ${trendWord} the longer-term average, and RSI is at ${components.rsi.toFixed(1)}. This is automated commentary on market data, not personalized financial advice \u2014 you decide whether and when to act on it.`;
+  }
+};
+
+// src/adapters/narration/provider.ts
+var cached7;
+function getNarrationAdapter() {
+  if (!cached7) {
+    const env2 = getEnv();
+    if (env2.LLM_NARRATION_PROVIDER === "anthropic") {
+      throw new Error(
+        "LLM_NARRATION_PROVIDER=anthropic has no adapter implementation yet \u2014 this is a Phase 2 addition, and even then it may only narrate computeSignal's output, never decide the bias itself."
+      );
+    }
+    cached7 = new TemplatedNarrationAdapter();
+  }
+  return cached7;
+}
+
 // src/buildApiApp.ts
 function buildApiApp() {
   const env2 = getEnv();
   return createApp({
     emailAdapter: getEmailAdapter(),
     kycAdapter: new SimulatorKycAdapter(),
+    brokerLinkAdapter: getBrokerLinkAdapter(),
+    paymentAdapter: getPaymentAdapter(),
+    marketDataAdapter: getMarketDataAdapter(),
+    narrationAdapter: getNarrationAdapter(),
     appBaseUrl: env2.CORS_ORIGIN
   });
 }

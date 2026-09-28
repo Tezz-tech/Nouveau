@@ -1,10 +1,14 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
-import { ONBOARDING_STEPS, type OnboardingStep } from "@nouveau/core";
+import { ALL_ONBOARDING_STEPS, type OnboardingStep } from "@nouveau/core";
 
 const onboardingSchema = new Schema(
   {
     completedSteps: {
-      type: [{ type: String, enum: ONBOARDING_STEPS }],
+      // Validated against the union of both tracks' steps, not one track's
+      // list — which specific steps are valid in what order is enforced by
+      // @nouveau/core's canCompleteStep against the user's own accountType,
+      // not by this schema. This enum only rejects outright garbage.
+      type: [{ type: String, enum: ALL_ONBOARDING_STEPS }],
       default: [],
     },
   },
@@ -27,6 +31,16 @@ const userSchema = new Schema(
       type: String,
       required: true,
       select: false, // never returned by a plain `.find()`/`.findOne()` — must opt in with `.select("+passwordHash")`
+    },
+    /** Decided once at signup, never changed by the API in Phase 1 — picks
+     *  which onboarding-step sequence and default revenue model apply (see
+     *  @nouveau/core's `stepsFor`/`defaultRevenueModelFor`). "investor"
+     *  deposits money and Nouveau trades it for them; "trader" links their
+     *  own broker account and trades it themselves off Nouveau's signals. */
+    accountType: {
+      type: String,
+      enum: ["investor", "trader"],
+      required: true,
     },
     kycStatus: {
       type: String,

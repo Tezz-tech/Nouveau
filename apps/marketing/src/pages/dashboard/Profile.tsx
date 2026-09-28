@@ -6,9 +6,11 @@ import { api, ApiError } from "@/lib/api";
 
 interface ProfileSummary {
   email: string;
+  accountType: "investor" | "trader";
   kycStatus: "pending" | "verified" | "rejected";
   memberSince: string;
   brokerAccount: { broker: string; login: string; serverName: string; status: string } | null;
+  subscription: { plan: string; status: string; priceCents: number; currency: string } | null;
 }
 
 const KYC_LABEL: Record<ProfileSummary["kycStatus"], string> = {

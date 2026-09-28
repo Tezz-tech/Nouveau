@@ -4,8 +4,16 @@ import RiseIn from "@/components/motion/RiseIn";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 
+/**
+ * Shared by both tracks. An investor's password is their full MT5 trading
+ * password (Nouveau needs it to copy-trade). A trader's is MT4/5's own
+ * read-only "investor password" — this is verified against their broker
+ * before the step is allowed to complete, so the copy below says so
+ * explicitly rather than reusing the investor's wording.
+ */
 export default function CredentialsStep() {
-  const { refresh } = useAuth();
+  const { refresh, onboarding } = useAuth();
+  const isTrader = onboarding?.accountType === "trader";
   const [mt5Password, setMt5Password] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -35,13 +43,15 @@ export default function CredentialsStep() {
     <form onSubmit={onSubmit} className="space-y-6" noValidate>
       <RiseIn>
         <p className="text-body text-slate">
-          Your trading account login is encrypted — no one at Nouveau can read it back, including our own staff.
+          {isTrader
+            ? "Use your account's investor (read-only) password, not your trading password — this lets us see your activity for analysis, but it can never place a trade or move funds. We verify it against your broker before continuing."
+            : "Your trading account login is encrypted — no one at Nouveau can read it back, including our own staff."}
         </p>
       </RiseIn>
       {error && <ErrorBanner message={error} />}
       <RiseIn index={1}>
         <TextField
-          label="Trading account password"
+          label={isTrader ? "Investor (read-only) password" : "Trading account password"}
           name="mt5Password"
           type="password"
           required

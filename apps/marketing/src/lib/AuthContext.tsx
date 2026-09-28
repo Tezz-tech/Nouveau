@@ -1,7 +1,10 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { api } from "./api";
 
+export type AccountType = "investor" | "trader";
+
 export interface OnboardingStatus {
+  accountType: AccountType;
   completedSteps: string[];
   nextStep: string;
   progressFraction: number;

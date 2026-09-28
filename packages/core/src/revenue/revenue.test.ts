@@ -3,7 +3,7 @@ import fc from "fast-check";
 import { cents, ZERO_CENTS, add } from "../money";
 import { subscriptionOnlyPolicy } from "./subscriptionOnly";
 import { subscriptionPlusSplitPolicy } from "./subscriptionPlusSplit";
-import { getRevenuePolicy, DEFAULT_REVENUE_MODEL } from "./index";
+import { getRevenuePolicy, DEFAULT_REVENUE_MODEL, defaultRevenueModelFor } from "./index";
 
 describe("subscriptionOnlyPolicy", () => {
   it("never charges a fee, regardless of profit", () => {
@@ -97,7 +97,17 @@ describe("getRevenuePolicy / registry", () => {
     expect(getRevenuePolicy("subscription_plus_split")).toBe(subscriptionPlusSplitPolicy);
   });
 
-  it("defaults to subscription_plus_split (client confirmed: no eligibility gate, every user gets the split model)", () => {
+  it("defaults to subscription_plus_split (client confirmed: no eligibility gate, every investor gets the split model)", () => {
     expect(DEFAULT_REVENUE_MODEL).toBe("subscription_plus_split");
+  });
+});
+
+describe("defaultRevenueModelFor", () => {
+  it("gives investors the split model", () => {
+    expect(defaultRevenueModelFor("investor")).toBe("subscription_plus_split");
+  });
+
+  it("gives traders subscription-only — Nouveau never holds or trades their money, so there's no profit to split", () => {
+    expect(defaultRevenueModelFor("trader")).toBe("subscription_only");
   });
 });

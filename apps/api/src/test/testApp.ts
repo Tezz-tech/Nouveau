@@ -4,6 +4,10 @@ import session from "express-session";
 import { findCachedMongodBinary } from "@nouveau/db";
 import { createApp } from "../app";
 import { SimulatorKycAdapter } from "../adapters/kyc/SimulatorKycAdapter";
+import { SimulatorBrokerLinkAdapter } from "../adapters/brokerLink/SimulatorBrokerLinkAdapter";
+import { SimulatorPaymentAdapter } from "../adapters/payment/SimulatorPaymentAdapter";
+import { SimulatorMarketDataAdapter } from "../adapters/marketData/SimulatorMarketDataAdapter";
+import { TemplatedNarrationAdapter } from "../adapters/narration/TemplatedNarrationAdapter";
 import type { EmailMessage, EmailAdapter } from "../adapters/email/EmailAdapter";
 
 export class RecordingEmailAdapter implements EmailAdapter {
@@ -27,6 +31,10 @@ export async function buildTestApp() {
   const app = createApp({
     emailAdapter,
     kycAdapter: new SimulatorKycAdapter(),
+    brokerLinkAdapter: new SimulatorBrokerLinkAdapter(),
+    paymentAdapter: new SimulatorPaymentAdapter(),
+    marketDataAdapter: new SimulatorMarketDataAdapter(),
+    narrationAdapter: new TemplatedNarrationAdapter(),
     appBaseUrl: "http://localhost:5173",
     // in-memory session store for tests — MongoStore would try to open a
     // second real connection using connect-mongo's own client

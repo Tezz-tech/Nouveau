@@ -1,10 +1,11 @@
 import { User, PasswordResetToken, type UserDocument } from "@nouveau/db";
+import type { AccountType } from "@nouveau/core";
 import { hashPassword, verifyPassword, generateToken, hashToken, verifyTokenHash } from "@nouveau/security";
 import { HttpError } from "../middleware/errorHandler";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-export async function signUp(email: string, password: string): Promise<UserDocument> {
+export async function signUp(email: string, password: string, accountType: AccountType): Promise<UserDocument> {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     // Deliberately vague — "email already exists" on a signup form is a
@@ -18,6 +19,7 @@ export async function signUp(email: string, password: string): Promise<UserDocum
   const user = await User.create({
     email,
     passwordHash,
+    accountType,
     onboarding: { completedSteps: ["account"] },
   });
   return user;

@@ -20,7 +20,7 @@ beforeEach(async () => {
 
 describe("POST /auth/signup", () => {
   it("creates a user and starts a session", async () => {
-    const res = await request(app).post("/auth/signup").send({ email: "new@example.com", password: "correcthorsebattery" });
+    const res = await request(app).post("/auth/signup").send({ email: "new@example.com", password: "correcthorsebattery", accountType: "investor" });
     expect(res.status).toBe(201);
     expect(res.body.email).toBe("new@example.com");
     expect(res.body.onboarding.completedSteps).toEqual(["account"]);
@@ -29,28 +29,56 @@ describe("POST /auth/signup", () => {
   });
 
   it("rejects a password shorter than 10 characters", async () => {
-    const res = await request(app).post("/auth/signup").send({ email: "short@example.com", password: "short" });
+    const res = await request(app).post("/auth/signup").send({ email: "short@example.com", password: "short", accountType: "investor" });
     expect(res.status).toBe(400);
   });
 
   it("rejects a duplicate email without revealing which check failed differently", async () => {
-    await request(app).post("/auth/signup").send({ email: "dup@example.com", password: "correcthorsebattery" });
-    const res = await request(app).post("/auth/signup").send({ email: "dup@example.com", password: "anotherpassword1" });
+    await request(app).post("/auth/signup").send({ email: "dup@example.com", password: "correcthorsebattery", accountType: "investor" });
+    const res = await request(app).post("/auth/signup").send({ email: "dup@example.com", password: "anotherpassword1", accountType: "investor" });
     expect(res.status).toBe(409);
   });
 
   it("never returns the password or its hash", async () => {
-    const res = await request(app).post("/auth/signup").send({ email: "safe@example.com", password: "correcthorsebattery" });
+    const res = await request(app).post("/auth/signup").send({ email: "safe@example.com", password: "correcthorsebattery", accountType: "investor" });
     const serialized = JSON.stringify(res.body);
     expect(serialized).not.toContain("correcthorsebattery");
     expect(serialized.toLowerCase()).not.toContain("passwordhash");
+  });
+
+  it("requires accountType", async () => {
+    const res = await request(app).post("/auth/signup").send({ email: "no-type@example.com", password: "correcthorsebattery" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an accountType that isn't investor or trader", async () => {
+    const res = await request(app)
+      .post("/auth/signup")
+      .send({ email: "bad-type@example.com", password: "correcthorsebattery", accountType: "not_a_type" });
+    expect(res.status).toBe(400);
+  });
+
+  it("a trader signup gets the trader track from step one", async () => {
+    const res = await request(app)
+      .post("/auth/signup")
+      .send({ email: "trader-signup@example.com", password: "correcthorsebattery", accountType: "trader" });
+    expect(res.status).toBe(201);
+    expect(res.body.onboarding.accountType).toBe("trader");
+    expect(res.body.onboarding.nextStep).toBe("identity");
+    expect(res.body.onboarding.steps.map((s: { step: string }) => s.step)).toEqual([
+      "account",
+      "identity",
+      "broker_link",
+      "credentials",
+      "plan",
+    ]);
   });
 });
 
 describe("POST /auth/login and session lifecycle", () => {
   it("logs in with correct credentials and the session persists across requests", async () => {
     const agent = request.agent(app);
-    await agent.post("/auth/signup").send({ email: "loginflow@example.com", password: "correcthorsebattery" });
+    await agent.post("/auth/signup").send({ email: "loginflow@example.com", password: "correcthorsebattery", accountType: "investor" });
     await agent.post("/auth/logout");
 
     const loginRes = await agent.post("/auth/login").send({ email: "loginflow@example.com", password: "correcthorsebattery" });
@@ -61,7 +89,7 @@ describe("POST /auth/login and session lifecycle", () => {
   });
 
   it("rejects the wrong password", async () => {
-    await request(app).post("/auth/signup").send({ email: "wrongpass@example.com", password: "correcthorsebattery" });
+    await request(app).post("/auth/signup").send({ email: "wrongpass@example.com", password: "correcthorsebattery", accountType: "investor" });
     const res = await request(app).post("/auth/login").send({ email: "wrongpass@example.com", password: "wrongpassword1" });
     expect(res.status).toBe(401);
   });
@@ -73,7 +101,7 @@ describe("POST /auth/login and session lifecycle", () => {
 
   it("logout ends the session", async () => {
     const agent = request.agent(app);
-    await agent.post("/auth/signup").send({ email: "logout@example.com", password: "correcthorsebattery" });
+    await agent.post("/auth/signup").send({ email: "logout@example.com", password: "correcthorsebattery", accountType: "investor" });
     await agent.post("/auth/logout");
     const res = await agent.get("/auth/session");
     expect(res.body.authenticated).toBe(false);
@@ -82,7 +110,7 @@ describe("POST /auth/login and session lifecycle", () => {
 
 describe("password reset flow", () => {
   it("requesting a reset for a real email sends an email containing a usable token, which then works", async () => {
-    await request(app).post("/auth/signup").send({ email: "reset@example.com", password: "originalPassword1" });
+    await request(app).post("/auth/signup").send({ email: "reset@example.com", password: "originalPassword1", accountType: "investor" });
 
     const reqRes = await request(app).post("/auth/password-reset/request").send({ email: "reset@example.com" });
     expect(reqRes.status).toBe(200);
@@ -116,7 +144,7 @@ describe("password reset flow", () => {
   });
 
   it("a token cannot be reused after a successful reset", async () => {
-    await request(app).post("/auth/signup").send({ email: "reuse@example.com", password: "originalPassword1" });
+    await request(app).post("/auth/signup").send({ email: "reuse@example.com", password: "originalPassword1", accountType: "investor" });
     await request(app).post("/auth/password-reset/request").send({ email: "reuse@example.com" });
     const link = emailAdapter.sent.at(-1)!.text;
     const token = new URL(link.match(/https?:\/\/\S+/)![0]).searchParams.get("token")!;

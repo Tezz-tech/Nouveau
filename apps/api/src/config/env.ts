@@ -38,11 +38,49 @@ const envSchema = z
      *  production while working fine in dev. "none" forces `secure: true`
      *  regardless of NODE_ENV, since browsers require that combination. */
     COOKIE_SAME_SITE: z.enum(["lax", "none"]).default("lax"),
+    /** Trader-track integrations. Every one of these defaults to a safe,
+     *  synthetic-data simulator — the same "build the seam, default to a
+     *  stub" discipline as EMAIL_PROVIDER above — until the client supplies
+     *  real vendor credentials (see apps/marketing's README for what each
+     *  real value needs). `metaapi` is the existing hinted vendor
+     *  (`MtAccount.metaApiId`/`copyFactoryId`) for both market data and
+     *  broker-account linking; the real payment value name is a
+     *  placeholder — `packages/core/src/ledger.ts` already assumes
+     *  Paystack elsewhere in this project, so confirm the processor before
+     *  wiring a real PaymentAdapter. */
+    MARKET_DATA_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+    BROKER_LINK_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+    PAYMENT_PROVIDER: z.enum(["simulator", "real"]).default("simulator"),
+    LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
+    META_API_TOKEN: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
   })
   .refine((env) => env.EMAIL_PROVIDER !== "resend" || Boolean(env.RESEND_API_KEY && env.EMAIL_FROM), {
     message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
     path: ["EMAIL_PROVIDER"],
-  });
+  })
+  .refine((env) => env.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env.META_API_TOKEN), {
+    message: "META_API_TOKEN is required when MARKET_DATA_PROVIDER=metaapi",
+    path: ["MARKET_DATA_PROVIDER"],
+  })
+  .refine((env) => env.BROKER_LINK_PROVIDER !== "metaapi" || Boolean(env.META_API_TOKEN), {
+    message: "META_API_TOKEN is required when BROKER_LINK_PROVIDER=metaapi",
+    path: ["BROKER_LINK_PROVIDER"],
+  })
+  .refine((env) => env.LLM_NARRATION_PROVIDER !== "anthropic" || Boolean(env.ANTHROPIC_API_KEY), {
+    message: "ANTHROPIC_API_KEY is required when LLM_NARRATION_PROVIDER=anthropic",
+    path: ["LLM_NARRATION_PROVIDER"],
+  })
+  .refine(
+    (env) =>
+      env.TRADING_MODE !== "live" ||
+      (env.MARKET_DATA_PROVIDER !== "simulator" && env.BROKER_LINK_PROVIDER !== "simulator" && env.PAYMENT_PROVIDER !== "simulator"),
+    {
+      message:
+        "TRADING_MODE=live cannot run on simulated market data, broker linking, or payments — set MARKET_DATA_PROVIDER/BROKER_LINK_PROVIDER/PAYMENT_PROVIDER to a real provider first.",
+      path: ["TRADING_MODE"],
+    }
+  );
 
 export type Env = z.infer<typeof envSchema>;
 

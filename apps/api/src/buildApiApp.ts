@@ -3,6 +3,10 @@ import { createApp } from "./app";
 import { getEnv } from "./config/env";
 import { getEmailAdapter } from "./adapters/email/provider";
 import { SimulatorKycAdapter } from "./adapters/kyc/SimulatorKycAdapter";
+import { getBrokerLinkAdapter } from "./adapters/brokerLink/provider";
+import { getPaymentAdapter } from "./adapters/payment/provider";
+import { getMarketDataAdapter } from "./adapters/marketData/provider";
+import { getNarrationAdapter } from "./adapters/narration/provider";
 
 /**
  * Shared between server.ts (a traditional long-running host) and
@@ -16,6 +20,10 @@ export function buildApiApp(): Express {
   return createApp({
     emailAdapter: getEmailAdapter(),
     kycAdapter: new SimulatorKycAdapter(),
+    brokerLinkAdapter: getBrokerLinkAdapter(),
+    paymentAdapter: getPaymentAdapter(),
+    marketDataAdapter: getMarketDataAdapter(),
+    narrationAdapter: getNarrationAdapter(),
     appBaseUrl: env.CORS_ORIGIN,
   });
 }

@@ -107,22 +107,36 @@ regardless of stack. Violating any of these is a critical bug:
 ## Status
 
 - **Phase 1 (`packages/core`)** — done. Money type, ledger primitives, all
-  three floor policies, both revenue models, the cycle state machine, and
-  the settlement calculator, with property-based tests. See
+  three floor policies, both revenue models, the cycle state machine, the
+  settlement calculator, and the technical-indicator signal engine
+  (`packages/core/src/signals/`), with property-based tests. See
   `packages/core/README.md` for what it owns and what it must never do.
-- **Phase 2 (auth + onboarding)** — done. `packages/security` (Argon2,
-  envelope encryption, tokens) and `packages/db` (Mongoose models) back
-  `apps/api`'s signup/login/password-reset and the five-step onboarding
-  wizard, all surfaced through `apps/marketing` (see "One frontend, not
-  several" above). Deployed: `apps/api` on Vercel, `apps/marketing`
-  wherever the public site was already hosted.
-- **Dashboard UI** — built ahead of its real backend, deliberately: the
-  design/layout/chart at `apps/marketing/src/pages/Dashboard.tsx` are real,
-  but every number on it is demo data (see that app's README "Dashboard"
-  section) since deposits/ledger/broker data don't exist yet. Don't remove
-  its demo-data banner until Phase 3 actually backs it with real numbers.
-- Everything else from Phase 3 on (ledger persistence, broker integration,
-  real dashboard data, admin) — not started.
+- **Phase 2 (auth + onboarding)** — done, now for two account types, not
+  one (see below). `packages/security` (Argon2, envelope encryption,
+  tokens) and `packages/db` (Mongoose models) back `apps/api`'s
+  signup/login/password-reset and onboarding, all surfaced through
+  `apps/marketing` (see "One frontend, not several" above). Deployed:
+  `apps/api` on Vercel, `apps/marketing` wherever the public site was
+  already hosted.
+- **Two account types (2026-09-28)** — a user picks a track at signup,
+  which decides their onboarding steps, revenue model, and dashboard from
+  that point on:
+  - **Investor** — the original mechanism above (deposit, split, copy-trade,
+    profit split). Dashboard: account Overview, Funding/Withdraw preview,
+    Transactions/Trading history.
+  - **Trader** — links their *own* existing broker account (Nouveau never
+    takes custody or trades it), gets a live buy/sell signal tool computed
+    from real technical indicators (never an LLM deciding the bias — see
+    invariant #8), pays a flat subscription. Dashboard: live Analytics as
+    home, Billing.
+  Both are architecturally real end to end; only the trader track's market
+  data, broker verification, and billing still run on simulators pending
+  real vendor credentials only the client can obtain — see
+  `apps/api/README.md`'s "Assumptions flagged" for exactly what's needed
+  and from where.
+- Everything else from Phase 3 on (ledger persistence, real broker
+  integration for the investor track, real dashboard money data, admin) —
+  not started.
 
 ## A note on scope
 
