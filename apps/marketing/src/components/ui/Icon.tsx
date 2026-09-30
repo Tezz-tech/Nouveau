@@ -21,6 +21,7 @@ import {
   Lock,
   TrendingUp,
   CheckCircle2,
+  Link2,
   type LucideProps,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ const registry = {
   custody: Lock,
   atRisk: TrendingUp,
   success: CheckCircle2,
+  broker: Link2,
 } as const;
 
 export type IconName = keyof typeof registry;

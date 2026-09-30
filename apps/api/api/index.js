@@ -535,12 +535,19 @@ var envSchema = z.object({
   PAYMENT_PROVIDER: z.enum(["simulator", "real"]).default("simulator"),
   LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
   META_API_TOKEN: z.string().optional(),
+  /** The MetaApi account id (not a broker login) of one dedicated demo
+   *  account Nouveau keeps connected purely as a market-data feed for
+   *  every trader's signal requests — see MetaApiMarketDataAdapter. */
+  META_API_ACCOUNT_ID: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional()
 }).refine((env2) => env2.EMAIL_PROVIDER !== "resend" || Boolean(env2.RESEND_API_KEY && env2.EMAIL_FROM), {
   message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
   path: ["EMAIL_PROVIDER"]
 }).refine((env2) => env2.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env2.META_API_TOKEN), {
   message: "META_API_TOKEN is required when MARKET_DATA_PROVIDER=metaapi",
+  path: ["MARKET_DATA_PROVIDER"]
+}).refine((env2) => env2.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env2.META_API_ACCOUNT_ID), {
+  message: "META_API_ACCOUNT_ID is required when MARKET_DATA_PROVIDER=metaapi (the shared house MT account used as the market-data feed)",
   path: ["MARKET_DATA_PROVIDER"]
 }).refine((env2) => env2.BROKER_LINK_PROVIDER !== "metaapi" || Boolean(env2.META_API_TOKEN), {
   message: "META_API_TOKEN is required when BROKER_LINK_PROVIDER=metaapi",
@@ -1527,17 +1534,64 @@ var SimulatorBrokerLinkAdapter = class {
   }
 };
 
+// src/adapters/brokerLink/MetaApiBrokerLinkAdapter.ts
+import MetaApi from "metaapi.cloud-sdk/node";
+var MetaApiBrokerLinkAdapter = class {
+  provider = "metaapi";
+  api;
+  constructor(token) {
+    this.api = new MetaApi(token);
+  }
+  async verifyReadOnlyAccess(input) {
+    let account;
+    try {
+      const profile = await this.findOrCreateProvisioningProfile(input.serverName);
+      account = await this.api.metatraderAccountApi.createAccount({
+        name: `verify-${input.login}-${Date.now()}`,
+        login: input.login,
+        password: input.investorPassword,
+        server: input.serverName,
+        provisioningProfileId: profile.id,
+        magic: 0
+      });
+      await account.deploy();
+      await account.waitConnected();
+      return { verified: true };
+    } catch (err) {
+      return {
+        verified: false,
+        reason: err instanceof Error ? err.message : "Couldn't verify that broker account."
+      };
+    } finally {
+      if (account) {
+        try {
+          await account.remove();
+        } catch {
+        }
+      }
+    }
+  }
+  async findOrCreateProvisioningProfile(serverName) {
+    const existing = await this.api.provisioningProfileApi.getProvisioningProfilesWithInfiniteScrollPagination({
+      query: serverName
+    });
+    const match = existing.find((profile) => profile.name === serverName);
+    if (match) return match;
+    return this.api.provisioningProfileApi.createProvisioningProfile({
+      name: serverName,
+      version: 5,
+      brokerTimezone: "EET",
+      brokerDSTSwitchTimezone: "EET"
+    });
+  }
+};
+
 // src/adapters/brokerLink/provider.ts
 var cached4;
 function getBrokerLinkAdapter() {
   if (!cached4) {
     const env2 = getEnv();
-    if (env2.BROKER_LINK_PROVIDER === "metaapi") {
-      throw new Error(
-        "BROKER_LINK_PROVIDER=metaapi has no real adapter implementation yet \u2014 this is a Phase 2 addition once a MetaApi token is confirmed working."
-      );
-    }
-    cached4 = new SimulatorBrokerLinkAdapter();
+    cached4 = env2.BROKER_LINK_PROVIDER === "metaapi" ? new MetaApiBrokerLinkAdapter(env2.META_API_TOKEN) : new SimulatorBrokerLinkAdapter();
   }
   return cached4;
 }
@@ -1619,17 +1673,40 @@ var SimulatorMarketDataAdapter = class {
   }
 };
 
+// src/adapters/marketData/MetaApiMarketDataAdapter.ts
+import MetaApi2 from "metaapi.cloud-sdk/node";
+var TIMEFRAME = "1m";
+var MetaApiMarketDataAdapter = class {
+  provider = "metaapi";
+  api;
+  accountId;
+  constructor(token, accountId) {
+    this.api = new MetaApi2(token);
+    this.accountId = accountId;
+  }
+  async getRecentCandles(symbol, count) {
+    const account = await this.api.metatraderAccountApi.getAccount(this.accountId);
+    if (account.state !== "DEPLOYED") {
+      await account.deploy();
+    }
+    await account.waitConnected();
+    const raw = await account.getHistoricalCandles(symbol, TIMEFRAME, void 0, count);
+    return raw.map((candle) => ({
+      timestamp: new Date(candle.time).getTime(),
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close
+    })).sort((a, b) => a.timestamp - b.timestamp);
+  }
+};
+
 // src/adapters/marketData/provider.ts
 var cached6;
 function getMarketDataAdapter() {
   if (!cached6) {
     const env2 = getEnv();
-    if (env2.MARKET_DATA_PROVIDER === "metaapi") {
-      throw new Error(
-        "MARKET_DATA_PROVIDER=metaapi has no real adapter implementation yet \u2014 this is a Phase 2 addition once a MetaApi token is confirmed working."
-      );
-    }
-    cached6 = new SimulatorMarketDataAdapter();
+    cached6 = env2.MARKET_DATA_PROVIDER === "metaapi" ? new MetaApiMarketDataAdapter(env2.META_API_TOKEN, env2.META_API_ACCOUNT_ID) : new SimulatorMarketDataAdapter();
   }
   return cached6;
 }

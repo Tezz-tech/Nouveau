@@ -250,11 +250,29 @@ the client's project already lives.
    entirely on simulators** — real signals, real broker verification, and
    real billing all need a vendor relationship only the client can set up:
    - **MetaApi** (metaapi.cloud) for `MARKET_DATA_PROVIDER=metaapi` and
-     `BROKER_LINK_PROVIDER=metaapi` — `MtAccount.metaApiId`/`copyFactoryId`
-     already hint this was always the intended vendor, and the same token
-     covers the investor track's copy-trading too. Set `META_API_TOKEN` in
-     `.env` once the client has an account and token — never paste it into
-     chat.
+     `BROKER_LINK_PROVIDER=metaapi`. `MetaApiMarketDataAdapter` and
+     `MetaApiBrokerLinkAdapter` (2026-09-30) are written against the real
+     `metaapi.cloud-sdk` v29 package and typecheck, but **are unverified
+     against a live MetaApi account** — there is no `META_API_TOKEN`
+     configured anywhere to test against yet. Treat the first real call as
+     the actual verification step. Two things to know before flipping this
+     on:
+     - `MARKET_DATA_PROVIDER=metaapi` additionally requires
+       `META_API_ACCOUNT_ID` — the id of one dedicated demo MT account kept
+       connected purely as a shared price feed for every trader's signal
+       request (not any individual trader's own account).
+     - `BROKER_LINK_PROVIDER=metaapi` creates a temporary MetaApi account
+       per verification call, tied to a "provisioning profile" for that
+       broker server. A brand-new profile only reaches MetaApi's "active"
+       status once the broker's `servers.dat`/`broker.srv` file is uploaded
+       to it — a manual, broker-specific step this code cannot do on its
+       own. Many common broker servers are already recognized by MetaApi
+       without it; an obscure one will fail verification with a real,
+       surfaced error rather than a false "verified: true".
+     Set `META_API_TOKEN` (and `META_API_ACCOUNT_ID` for market data) in
+     `.env` once the client has an account and token — never paste either
+     into chat. The same token covers the investor track's copy-trading
+     too, per `MtAccount.metaApiId`/`copyFactoryId`.
    - **A payment processor** for `PAYMENT_PROVIDER=real` —
      `@nouveau/core`'s `ledger.ts` already assumes Paystack in its own
      comments, so confirm that's still the intended processor before

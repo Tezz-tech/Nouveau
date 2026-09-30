@@ -1,18 +1,22 @@
 import { getEnv } from "../../config/env";
 import type { BrokerLinkAdapter } from "./BrokerLinkAdapter";
 import { SimulatorBrokerLinkAdapter } from "./SimulatorBrokerLinkAdapter";
+import { MetaApiBrokerLinkAdapter } from "./MetaApiBrokerLinkAdapter";
 
 let cached: BrokerLinkAdapter | undefined;
 
+/**
+ * env.ts already refuses to boot with `BROKER_LINK_PROVIDER=metaapi` and no
+ * `META_API_TOKEN` set, so the non-null assertion below is safe by the time
+ * this ever runs.
+ */
 export function getBrokerLinkAdapter(): BrokerLinkAdapter {
   if (!cached) {
     const env = getEnv();
-    if (env.BROKER_LINK_PROVIDER === "metaapi") {
-      throw new Error(
-        "BROKER_LINK_PROVIDER=metaapi has no real adapter implementation yet — this is a Phase 2 addition once a MetaApi token is confirmed working."
-      );
-    }
-    cached = new SimulatorBrokerLinkAdapter();
+    cached =
+      env.BROKER_LINK_PROVIDER === "metaapi"
+        ? new MetaApiBrokerLinkAdapter(env.META_API_TOKEN!)
+        : new SimulatorBrokerLinkAdapter();
   }
   return cached;
 }

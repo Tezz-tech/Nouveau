@@ -53,6 +53,10 @@ const envSchema = z
     PAYMENT_PROVIDER: z.enum(["simulator", "real"]).default("simulator"),
     LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
     META_API_TOKEN: z.string().optional(),
+    /** The MetaApi account id (not a broker login) of one dedicated demo
+     *  account Nouveau keeps connected purely as a market-data feed for
+     *  every trader's signal requests — see MetaApiMarketDataAdapter. */
+    META_API_ACCOUNT_ID: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
   })
   .refine((env) => env.EMAIL_PROVIDER !== "resend" || Boolean(env.RESEND_API_KEY && env.EMAIL_FROM), {
@@ -61,6 +65,10 @@ const envSchema = z
   })
   .refine((env) => env.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env.META_API_TOKEN), {
     message: "META_API_TOKEN is required when MARKET_DATA_PROVIDER=metaapi",
+    path: ["MARKET_DATA_PROVIDER"],
+  })
+  .refine((env) => env.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env.META_API_ACCOUNT_ID), {
+    message: "META_API_ACCOUNT_ID is required when MARKET_DATA_PROVIDER=metaapi (the shared house MT account used as the market-data feed)",
     path: ["MARKET_DATA_PROVIDER"],
   })
   .refine((env) => env.BROKER_LINK_PROVIDER !== "metaapi" || Boolean(env.META_API_TOKEN), {

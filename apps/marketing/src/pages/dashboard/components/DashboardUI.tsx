@@ -104,6 +104,12 @@ export function IconBadge({ icon, tone = "gold" }: { icon: IconName; tone?: keyo
   );
 }
 
+/** A filled status pill — same tone palette as `IconBadge`, for a short
+ *  label instead of an icon (e.g. "Verified", "Active", "Trader"). */
+export function Badge({ label, tone = "gold" }: { label: string; tone?: keyof typeof BADGE_TONE }) {
+  return <span className={clsx("inline-flex items-center rounded-full px-2.5 py-1 text-caption font-medium", BADGE_TONE[tone])}>{label}</span>;
+}
+
 /** Counts from its previous value to a new one instead of snapping —
  *  the classic "this dashboard is alive" cue for a number that just
  *  changed. Respects prefers-reduced-motion by jumping straight to value. */
