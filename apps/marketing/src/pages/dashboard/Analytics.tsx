@@ -3,6 +3,9 @@ import Seo from "@/components/Seo";
 import RiseIn from "@/components/motion/RiseIn";
 import { Card, DarkTextField, InfoBanner, PageHeading, SectionHeading } from "./components/DashboardUI";
 import SketchableChart from "./analytics/SketchableChart";
+import MarketTicker from "./components/MarketTicker";
+import DeskChat from "./components/DeskChat";
+import MarketChat from "./MarketChat";
 import { TRADER_PAIRS, getSignal, type SignalResponse } from "@/lib/signalsApi";
 import { ApiError } from "@/lib/api";
 
@@ -84,6 +87,14 @@ export default function Analytics() {
       <div className="mt-8">
         <PageHeading>Trading analytics</PageHeading>
       </div>
+
+      <section className="mt-6" aria-label="Live market floor">
+        <MarketTicker />
+      </section>
+
+      <section className="mt-6" aria-label="Trading floor chat">
+        <DeskChat />
+      </section>
 
       <RiseIn index={2} className="mt-6 flex flex-wrap gap-2">
         {TRADER_PAIRS.map((p) => (
@@ -189,6 +200,10 @@ export default function Analytics() {
           </form>
         </RiseIn>
       </div>
+
+      <section className="mt-10" aria-label="Market data assistant">
+        <MarketChat compact />
+      </section>
     </>
   );
 }

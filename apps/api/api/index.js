@@ -491,6 +491,20 @@ var ledgerTransactionSchema = new Schema7(
 );
 var LedgerTransaction = model7("LedgerTransaction", ledgerTransactionSchema);
 
+// ../../packages/db/src/models/DeskMessage.ts
+import { Schema as Schema8, model as model8 } from "mongoose";
+var deskMessageSchema = new Schema8(
+  {
+    userId: { type: Schema8.Types.ObjectId, ref: "User", required: true, index: true },
+    displayName: { type: String, required: true },
+    accountType: { type: String, enum: ["investor", "trader"], required: true },
+    body: { type: String, required: true, maxlength: 500 }
+  },
+  { timestamps: true }
+);
+deskMessageSchema.index({ createdAt: -1 });
+var DeskMessage = model8("DeskMessage", deskMessageSchema);
+
 // src/config/env.ts
 import { z } from "zod";
 import "dotenv/config";
@@ -1460,6 +1474,274 @@ function createMarketChatRouter(marketDataAdapter) {
   return router;
 }
 
+// src/routes/desk.ts
+import { Router as Router7 } from "express";
+import { z as z6 } from "zod";
+var postSchema = z6.object({ body: z6.string().trim().min(1).max(500) });
+var deskSubscribers = /* @__PURE__ */ new Set();
+function broadcastDeskMessage(message) {
+  const payload = `data: ${JSON.stringify({ type: "message", message })}
+
+`;
+  for (const send of deskSubscribers) {
+    try {
+      send(payload);
+    } catch {
+    }
+  }
+}
+function serialize(doc) {
+  return {
+    id: String(doc._id),
+    displayName: doc.displayName ?? "trader",
+    accountType: doc.accountType ?? "investor",
+    body: doc.body ?? "",
+    createdAt: (doc.createdAt ?? /* @__PURE__ */ new Date()).toISOString()
+  };
+}
+function displayNameFor(email, accountType) {
+  const local = (email ?? "trader").split("@")[0] ?? "trader";
+  const short = local.slice(0, 18) || "trader";
+  const tag = accountType === "trader" ? "T" : "I";
+  return `${short} \xB7 ${tag}`;
+}
+function createDeskRouter() {
+  const router = Router7();
+  router.use(requireAuth);
+  router.get(
+    "/messages",
+    defaultRateLimit,
+    asyncHandler(async (_req, res) => {
+      const docs = await DeskMessage.find({}).sort({ createdAt: -1 }).limit(50).lean();
+      res.status(200).json({ messages: docs.reverse().map(serialize) });
+    })
+  );
+  router.post(
+    "/messages",
+    defaultRateLimit,
+    asyncHandler(async (req, res) => {
+      const parsed = postSchema.safeParse(req.body);
+      if (!parsed.success) throw new HttpError(400, "Message must be 1\u2013500 characters.");
+      const user = req.user;
+      if (!user) throw new HttpError(401, "Not authenticated.");
+      const doc = await DeskMessage.create({
+        userId: user._id,
+        displayName: displayNameFor(user.email, user.accountType),
+        accountType: user.accountType,
+        body: parsed.data.body
+      });
+      const message = serialize(doc);
+      broadcastDeskMessage(message);
+      res.status(201).json({ message });
+    })
+  );
+  router.get("/stream", (req, res) => {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive"
+    });
+    res.write(`data: ${JSON.stringify({ type: "hello", at: Date.now() })}
+
+`);
+    const send = (payload) => res.write(payload);
+    deskSubscribers.add(send);
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: heartbeat ${Date.now()}
+
+`);
+      } catch {
+      }
+    }, 2e4);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      deskSubscribers.delete(send);
+    });
+  });
+  return router;
+}
+
+// src/routes/market.ts
+import { Router as Router8 } from "express";
+
+// src/config/marketWatchlist.ts
+var WATCHLIST = [
+  { symbol: "AAPL", display: "AAPL", name: "Apple Inc.", flag: "\u{1F1FA}\u{1F1F8}", region: "United States", market: "NASDAQ", decimals: 2 },
+  { symbol: "TSLA", display: "TSLA", name: "Tesla Inc.", flag: "\u{1F1FA}\u{1F1F8}", region: "United States", market: "NASDAQ", decimals: 2 },
+  { symbol: "EUR/USD", display: "EUR/USD", name: "Euro / US Dollar", flag: "\u{1F1EA}\u{1F1FA}", region: "United States", market: "FOREX", decimals: 5 },
+  { symbol: "0700/HKG", display: "0700", name: "Tencent Holdings", flag: "\u{1F1ED}\u{1F1F0}", region: "Hong Kong", market: "HKEX", decimals: 2 },
+  { symbol: "NESN/SIX", display: "NESN", name: "Nestl\xE9 S.A.", flag: "\u{1F1E8}\u{1F1ED}", region: "Switzerland", market: "SIX", decimals: 2 },
+  { symbol: "7203/TYO", display: "7203", name: "Toyota Motor", flag: "\u{1F1EF}\u{1F1F5}", region: "Japan", market: "JPX", decimals: 2 }
+];
+var WATCHLIST_SYMBOLS = WATCHLIST.map((w) => w.symbol);
+
+// src/services/liveQuotesService.ts
+var SESSIONS = [
+  { region: "United States", market: "NYSE/NASDAQ", flag: "\u{1F1FA}\u{1F1F8}", openMin: 13 * 60 + 30, closeMin: 20 * 60 },
+  { region: "United Kingdom", market: "LSE", flag: "\u{1F1EC}\u{1F1E7}", openMin: 8 * 60, closeMin: 16 * 60 + 30 },
+  { region: "Hong Kong", market: "HKEX", flag: "\u{1F1ED}\u{1F1F0}", openMin: 1 * 60 + 30, closeMin: 8 * 60 },
+  { region: "Japan", market: "JPX", flag: "\u{1F1EF}\u{1F1F5}", openMin: 0, closeMin: 6 * 60 },
+  { region: "Switzerland", market: "SIX", flag: "\u{1F1E8}\u{1F1ED}", openMin: 8 * 60, closeMin: 16 * 60 + 30 }
+];
+function sessionStatus(nowUtcMin, openMin, closeMin) {
+  const DAY = 24 * 60;
+  if (nowUtcMin >= openMin && nowUtcMin < closeMin) {
+    return { open: true, nextInMs: (closeMin - nowUtcMin) * 6e4 };
+  }
+  const nextOpen = nowUtcMin < openMin ? openMin : openMin + DAY;
+  return { open: false, nextInMs: (nextOpen - nowUtcMin) * 6e4 };
+}
+function getMarketSessions(now = /* @__PURE__ */ new Date()) {
+  const nowMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+  return SESSIONS.map((s) => {
+    const { open, nextInMs } = sessionStatus(nowMin, s.openMin, s.closeMin);
+    const hours = Math.floor(nextInMs / 36e5);
+    const minutes = Math.floor(nextInMs % 36e5 / 6e4);
+    return {
+      region: s.region,
+      market: s.market,
+      flag: s.flag,
+      status: open ? "open" : "closed",
+      closesInMs: nextInMs,
+      label: open ? `closing in ${hours}h ${minutes}m` : `opens in ${hours}h ${minutes}m`
+    };
+  });
+}
+function quoteFromCandles(instrument, candles) {
+  if (candles.length === 0) return null;
+  const latest = candles[candles.length - 1];
+  const first = candles[0];
+  const change = latest.close - first.close;
+  return {
+    symbol: instrument.symbol,
+    display: instrument.display,
+    name: instrument.name,
+    flag: instrument.flag,
+    region: instrument.region,
+    market: instrument.market,
+    price: latest.close,
+    previousClose: first.close,
+    change,
+    changePercent: first.close === 0 ? 0 : change / first.close * 100,
+    timestamp: latest.timestamp,
+    stale: false
+  };
+}
+var QUOTE_CACHE_TTL_MS = 45e3;
+var quoteCache = /* @__PURE__ */ new Map();
+function cachedQuote(symbol) {
+  const entry = quoteCache.get(symbol);
+  if (!entry) return null;
+  if (Date.now() - entry.at > QUOTE_CACHE_TTL_MS) return null;
+  return { ...entry.quote, stale: true };
+}
+function primeQuoteCache(quote) {
+  quoteCache.set(quote.symbol, { at: Date.now(), quote });
+}
+function getCachedQuotes() {
+  return [...quoteCache.values()].map((e) => ({ ...e.quote, stale: Date.now() - e.at > QUOTE_CACHE_TTL_MS }));
+}
+async function getLiveQuotes(marketDataAdapter) {
+  const quotes = [];
+  for (const instrument of WATCHLIST) {
+    try {
+      const candles = await marketDataAdapter.getRecentCandles(instrument.symbol, 2);
+      const quote = quoteFromCandles(instrument, candles);
+      if (quote) {
+        quoteCache.set(instrument.symbol, { at: Date.now(), quote });
+        quotes.push(quote);
+        continue;
+      }
+    } catch {
+    }
+    const fallback = cachedQuote(instrument.symbol);
+    if (fallback) quotes.push(fallback);
+  }
+  return { quotes, dataSource: marketDataAdapter.provider };
+}
+
+// src/routes/market.ts
+var quoteSubscribers = /* @__PURE__ */ new Set();
+function broadcastQuotes(quotes, dataSource) {
+  const payload = `data: ${JSON.stringify({ type: "quotes", quotes, dataSource, at: Date.now() })}
+
+`;
+  for (const send of quoteSubscribers) {
+    try {
+      send(payload);
+    } catch {
+    }
+  }
+}
+function createMarketRouter(marketDataAdapter) {
+  const router = Router8();
+  router.use(requireAuth);
+  router.get(
+    "/quotes",
+    defaultRateLimit,
+    asyncHandler(async (_req, res) => {
+      const { quotes, dataSource } = await getLiveQuotes(marketDataAdapter);
+      res.status(200).json({ quotes, dataSource, at: Date.now() });
+    })
+  );
+  router.get(
+    "/sessions",
+    defaultRateLimit,
+    asyncHandler(async (_req, res) => {
+      res.status(200).json({ sessions: getMarketSessions(), at: Date.now() });
+    })
+  );
+  router.get("/stream", (req, res) => {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive"
+    });
+    res.write(`data: ${JSON.stringify({ type: "hello", at: Date.now() })}
+
+`);
+    const cached8 = getCachedQuotes();
+    if (cached8.length > 0) {
+      res.write(`data: ${JSON.stringify({ type: "quotes", quotes: cached8, dataSource: marketDataAdapter.provider, at: Date.now() })}
+
+`);
+    }
+    const send = (payload) => res.write(payload);
+    quoteSubscribers.add(send);
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: heartbeat ${Date.now()}
+
+`);
+      } catch {
+      }
+    }, 2e4);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      quoteSubscribers.delete(send);
+    });
+  });
+  return router;
+}
+async function refreshQuotesOnce(marketDataAdapter) {
+  try {
+    const { quotes, dataSource } = await getLiveQuotes(marketDataAdapter);
+    for (const q of quotes) primeQuoteCache(q);
+    broadcastQuotes(quotes, dataSource);
+  } catch {
+  }
+}
+var pollerStarted = false;
+function startMarketPoller(marketDataAdapter) {
+  if (pollerStarted) return;
+  pollerStarted = true;
+  void refreshQuotesOnce(marketDataAdapter);
+  setInterval(() => {
+    void refreshQuotesOnce(marketDataAdapter);
+  }, 6e4);
+}
+
 // src/app.ts
 function createApp(deps) {
   const env2 = getEnv();
@@ -1495,6 +1777,11 @@ function createApp(deps) {
   app2.use("/account", createLedgerRouter(deps.paymentAdapter));
   app2.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
   app2.use("/market-chat", createMarketChatRouter(deps.marketDataAdapter));
+  app2.use("/market", createMarketRouter(deps.marketDataAdapter));
+  app2.use("/desk", createDeskRouter());
+  if (env2.NODE_ENV !== "test") {
+    startMarketPoller(deps.marketDataAdapter);
+  }
   app2.use(errorHandler);
   return app2;
 }
@@ -1684,13 +1971,25 @@ var TwelveDataMarketDataAdapter = class {
     if (!Number.isInteger(count) || count < 1 || count > 5e3) {
       throw new RangeError("Twelve Data candle count must be an integer from 1 to 5000.");
     }
+    let requestSymbol = symbol;
+    let exchange;
+    const slash = symbol.indexOf("/");
+    if (slash >= 0) {
+      const head = symbol.slice(0, slash);
+      const tail = symbol.slice(slash + 1);
+      if (!/^[A-Za-z]{3}$/.test(tail)) {
+        requestSymbol = head;
+        exchange = { HKG: "HKEX", SIX: "SIX", TYO: "TYO", HKGEX: "HKEX" }[tail.toUpperCase()] ?? tail;
+      }
+    }
     const url = new URL("https://api.twelvedata.com/time_series");
     url.search = new URLSearchParams({
-      symbol,
+      symbol: requestSymbol,
       interval: "1min",
       outputsize: String(count),
       order: "ASC",
-      apikey: this.apiKey
+      apikey: this.apiKey,
+      ...exchange ? { exchange } : {}
     }).toString();
     const response = await this.fetchImpl(url);
     if (!response.ok) {

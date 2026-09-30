@@ -11,6 +11,8 @@ import { createAccountRouter } from "./routes/profile";
 import { createLedgerRouter } from "./routes/ledger";
 import { createSignalsRouter } from "./routes/signals";
 import { createMarketChatRouter } from "./routes/marketChat";
+import { createDeskRouter } from "./routes/desk";
+import { createMarketRouter, startMarketPoller } from "./routes/market";
 import type { EmailAdapter } from "./adapters/email/EmailAdapter";
 import type { KycAdapter } from "./adapters/kyc/KycAdapter";
 import type { BrokerLinkAdapter } from "./adapters/brokerLink/BrokerLinkAdapter";
@@ -67,8 +69,20 @@ export function createApp(deps: AppDependencies): Express {
   app.use("/account", createLedgerRouter(deps.paymentAdapter));
   app.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
   app.use("/market-chat", createMarketChatRouter(deps.marketDataAdapter));
+  app.use("/market", createMarketRouter(deps.marketDataAdapter));
+  app.use("/desk", createDeskRouter());
+
+  // One process-wide 60s poller behind the quotes endpoints + SSE fan-out.
+  // On Vercel's serverless runtime this simply runs per warm instance
+  // (SSE still works while the instance lives); on a long-running host it
+  // is the single Twelve Data poller every client shares. Never started in
+  // tests — NODE_ENV=test would otherwise leave an open interval per suite.
+  if (env.NODE_ENV !== "test") {
+    startMarketPoller(deps.marketDataAdapter);
+  }
 
   app.use(errorHandler);
 
   return app;
 }
+

@@ -48,13 +48,30 @@ export class TwelveDataMarketDataAdapter implements MarketDataAdapter {
       throw new RangeError("Twelve Data candle count must be an integer from 1 to 5000.");
     }
 
+    // Wall Street watchlist symbols may carry an exchange suffix ("0700/HKG",
+    // "NESN/SIX", "7203/TYO"). Twelve Data wants those as separate `symbol`
+    // + `exchange` params, while forex ("EUR/USD") goes as one symbol — so
+    // split only when the part after "/" is not a 3-letter currency code.
+    let requestSymbol = symbol;
+    let exchange: string | undefined;
+    const slash = symbol.indexOf("/");
+    if (slash >= 0) {
+      const head = symbol.slice(0, slash);
+      const tail = symbol.slice(slash + 1);
+      if (!/^[A-Za-z]{3}$/.test(tail)) {
+        requestSymbol = head;
+        exchange = { HKG: "HKEX", SIX: "SIX", TYO: "TYO", HKGEX: "HKEX" }[tail.toUpperCase()] ?? tail;
+      }
+    }
+
     const url = new URL("https://api.twelvedata.com/time_series");
     url.search = new URLSearchParams({
-      symbol,
+      symbol: requestSymbol,
       interval: "1min",
       outputsize: String(count),
       order: "ASC",
       apikey: this.apiKey,
+      ...(exchange ? { exchange } : {}),
     }).toString();
 
     const response = await this.fetchImpl(url);

@@ -7,3 +7,5 @@ export { LpoaSignature, type LpoaSignatureDocument } from "./models/LpoaSignatur
 export { Subscription, type SubscriptionDocument } from "./models/Subscription";
 export { SignalLog, type SignalLogDocument } from "./models/SignalLog";
 export { LedgerTransaction, type LedgerTransactionDocument } from "./models/LedgerTransaction";
+export { DeskMessage, type DeskMessageDocument } from "./models/DeskMessage";
+

@@ -56,8 +56,20 @@ just resolves through those rather than re-deciding anything itself.
   subscription requirement, order placement, or effect on investor funds.
   The configured market-data provider determines whether returned prices are
   simulated or supplied by Twelve Data. The dashboard refreshes the selected
-  pair every two minutes; Twelve Data is polled over REST, not streamed over
-  WebSockets.
+  pair every two minutes; Twelve Data is polled over REST.
+- **`routes/market.ts`** (`GET /market/quotes`, `GET /market/sessions`,
+  `GET /market/stream`) — the Overview "Wall Street strip" for both tracks.
+  A shared watchlist (`config/marketWatchlist.ts`: AAPL, TSLA, EUR/USD,
+  0700/HKG, NESN/SIX, 7203/TYO) with venue flags, plus per-region sessions
+  ("United States closing in 4h 35m"). Quotes are pushed live over
+  server-sent events and fall back to 60s REST polling; the API polls Twelve
+  Data over REST once per minute (45s cache) — no native WebSocket server,
+  which Vercel serverless can't hold open. The Twelve Data key never leaves
+  the server; the browser only ever talks to these endpoints.
+- **`routes/desk.ts`** (`GET /desk/messages`, `POST /desk/messages`,
+  `GET /desk/stream`) — shared trading-floor chat for both tracks, persisted
+  in `DeskMessage` (last 50) and broadcast live over SSE. Community talk
+  only, never advice or order placement.
 - **`routes/profile.ts`** (`GET /account/profile`) — read-only account
   summary (email, `accountType`, KYC status, broker account details,
   subscription for a trader) for the dashboard's Profile/Billing pages.

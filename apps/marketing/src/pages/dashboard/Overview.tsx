@@ -7,6 +7,8 @@ import { getOverview, getTransactions, formatCents, type Overview as OverviewDat
 import { ApiError } from "@/lib/api";
 import { Card, DarkErrorBanner, InfoBanner, PageHeading, SectionHeading, StatTile } from "./components/DashboardUI";
 import MarketChat from "./MarketChat";
+import MarketTicker from "./components/MarketTicker";
+import DeskChat from "./components/DeskChat";
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value: number }[] }) {
   if (!active || !payload?.length) return null;
@@ -80,7 +82,15 @@ export default function Overview() {
         <PageHeading>Account overview</PageHeading>
       </div>
 
-      <section className="mt-8" aria-label="Live forex market feed">
+      <section className="mt-6" aria-label="Live market floor">
+        <MarketTicker />
+      </section>
+
+      <section className="mt-6" aria-label="Trading floor chat">
+        <DeskChat />
+      </section>
+
+      <section className="mt-8" aria-label="Market data assistant">
         <MarketChat compact />
       </section>
 
