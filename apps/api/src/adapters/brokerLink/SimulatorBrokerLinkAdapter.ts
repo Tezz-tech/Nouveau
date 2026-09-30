@@ -3,7 +3,7 @@ import type { BrokerLinkAdapter, BrokerLinkInput, BrokerLinkResult } from "./Bro
 /**
  * Approves anything reasonably well-formed, rejects obvious placeholder
  * input — same shape as `SimulatorKycAdapter`, good enough to exercise the
- * trader onboarding flow end to end without a real MetaApi connection.
+ * trader onboarding flow end to end without a real broker connection.
  * Never use this in `TRADING_MODE=live` — `config/env.ts` already refuses
  * to boot with that combination.
  */

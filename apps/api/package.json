@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "esbuild src/vercelHandler.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/index.js --external:express --external:express-session --external:connect-mongo --external:express-rate-limit --external:cors --external:zod --external:dotenv --external:mongoose --external:argon2 --external:metaapi.cloud-sdk --external:metaapi.cloud-sdk/*"
+    "vercel-build": "esbuild src/vercelHandler.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/index.js --external:express --external:express-session --external:connect-mongo --external:express-rate-limit --external:cors --external:zod --external:dotenv --external:mongoose --external:argon2"
   },
   "dependencies": {
     "@nouveau/core": "0.1.0",
@@ -22,7 +22,6 @@
     "express": "4.22.3",
     "express-rate-limit": "7.4.1",
     "express-session": "1.19.0",
-    "metaapi.cloud-sdk": "^29.3.3",
     "zod": "3.23.8"
   },
   "devDependencies": {

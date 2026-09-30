@@ -383,8 +383,6 @@ var mtAccountSchema = new Schema2(
       enum: ["trading_password", "investor_password"],
       required: false
     },
-    metaApiId: { type: String, required: false },
-    copyFactoryId: { type: String, required: false },
     status: {
       type: String,
       enum: ["pending", "active", "suspended", "closed"],
@@ -520,38 +518,21 @@ var envSchema = z.object({
    *  production while working fine in dev. "none" forces `secure: true`
    *  regardless of NODE_ENV, since browsers require that combination. */
   COOKIE_SAME_SITE: z.enum(["lax", "none"]).default("lax"),
-  /** Trader-track integrations. Every one of these defaults to a safe,
-   *  synthetic-data simulator — the same "build the seam, default to a
-   *  stub" discipline as EMAIL_PROVIDER above — until the client supplies
-   *  real vendor credentials (see apps/marketing's README for what each
-   *  real value needs). `metaapi` is the existing hinted vendor
-   *  (`MtAccount.metaApiId`/`copyFactoryId`) for both market data and
-   *  broker-account linking; the real payment value name is a
-   *  placeholder — `packages/core/src/ledger.ts` already assumes
-   *  Paystack elsewhere in this project, so confirm the processor before
-   *  wiring a real PaymentAdapter. */
-  MARKET_DATA_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
-  BROKER_LINK_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+  /** Trader-track integrations. Market data and broker verification both
+   *  default to safe local simulators. Twelve Data only provides candles;
+   *  it cannot verify an MT4/5 login, so broker linking remains simulated. */
+  MARKET_DATA_PROVIDER: z.enum(["simulator", "twelvedata"]).default("simulator"),
+  BROKER_LINK_PROVIDER: z.enum(["simulator"]).default("simulator"),
   PAYMENT_PROVIDER: z.enum(["simulator", "real"]).default("simulator"),
   LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
-  META_API_TOKEN: z.string().optional(),
-  /** The MetaApi account id (not a broker login) of one dedicated demo
-   *  account Nouveau keeps connected purely as a market-data feed for
-   *  every trader's signal requests — see MetaApiMarketDataAdapter. */
-  META_API_ACCOUNT_ID: z.string().optional(),
+  TWELVE_DATA_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional()
 }).refine((env2) => env2.EMAIL_PROVIDER !== "resend" || Boolean(env2.RESEND_API_KEY && env2.EMAIL_FROM), {
   message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
   path: ["EMAIL_PROVIDER"]
-}).refine((env2) => env2.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env2.META_API_TOKEN), {
-  message: "META_API_TOKEN is required when MARKET_DATA_PROVIDER=metaapi",
+}).refine((env2) => env2.MARKET_DATA_PROVIDER !== "twelvedata" || Boolean(env2.TWELVE_DATA_API_KEY?.trim()), {
+  message: "TWELVE_DATA_API_KEY is required when MARKET_DATA_PROVIDER=twelvedata",
   path: ["MARKET_DATA_PROVIDER"]
-}).refine((env2) => env2.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env2.META_API_ACCOUNT_ID), {
-  message: "META_API_ACCOUNT_ID is required when MARKET_DATA_PROVIDER=metaapi (the shared house MT account used as the market-data feed)",
-  path: ["MARKET_DATA_PROVIDER"]
-}).refine((env2) => env2.BROKER_LINK_PROVIDER !== "metaapi" || Boolean(env2.META_API_TOKEN), {
-  message: "META_API_TOKEN is required when BROKER_LINK_PROVIDER=metaapi",
-  path: ["BROKER_LINK_PROVIDER"]
 }).refine((env2) => env2.LLM_NARRATION_PROVIDER !== "anthropic" || Boolean(env2.ANTHROPIC_API_KEY), {
   message: "ANTHROPIC_API_KEY is required when LLM_NARRATION_PROVIDER=anthropic",
   path: ["LLM_NARRATION_PROVIDER"]
@@ -1534,64 +1515,12 @@ var SimulatorBrokerLinkAdapter = class {
   }
 };
 
-// src/adapters/brokerLink/MetaApiBrokerLinkAdapter.ts
-import MetaApi from "metaapi.cloud-sdk/node";
-var MetaApiBrokerLinkAdapter = class {
-  provider = "metaapi";
-  api;
-  constructor(token) {
-    this.api = new MetaApi(token);
-  }
-  async verifyReadOnlyAccess(input) {
-    let account;
-    try {
-      const profile = await this.findOrCreateProvisioningProfile(input.serverName);
-      account = await this.api.metatraderAccountApi.createAccount({
-        name: `verify-${input.login}-${Date.now()}`,
-        login: input.login,
-        password: input.investorPassword,
-        server: input.serverName,
-        provisioningProfileId: profile.id,
-        magic: 0
-      });
-      await account.deploy();
-      await account.waitConnected();
-      return { verified: true };
-    } catch (err) {
-      return {
-        verified: false,
-        reason: err instanceof Error ? err.message : "Couldn't verify that broker account."
-      };
-    } finally {
-      if (account) {
-        try {
-          await account.remove();
-        } catch {
-        }
-      }
-    }
-  }
-  async findOrCreateProvisioningProfile(serverName) {
-    const existing = await this.api.provisioningProfileApi.getProvisioningProfilesWithInfiniteScrollPagination({
-      query: serverName
-    });
-    const match = existing.find((profile) => profile.name === serverName);
-    if (match) return match;
-    return this.api.provisioningProfileApi.createProvisioningProfile({
-      name: serverName,
-      version: 5,
-      brokerTimezone: "EET",
-      brokerDSTSwitchTimezone: "EET"
-    });
-  }
-};
-
 // src/adapters/brokerLink/provider.ts
 var cached4;
 function getBrokerLinkAdapter() {
   if (!cached4) {
-    const env2 = getEnv();
-    cached4 = env2.BROKER_LINK_PROVIDER === "metaapi" ? new MetaApiBrokerLinkAdapter(env2.META_API_TOKEN) : new SimulatorBrokerLinkAdapter();
+    getEnv();
+    cached4 = new SimulatorBrokerLinkAdapter();
   }
   return cached4;
 }
@@ -1673,30 +1602,55 @@ var SimulatorMarketDataAdapter = class {
   }
 };
 
-// src/adapters/marketData/MetaApiMarketDataAdapter.ts
-import MetaApi2 from "metaapi.cloud-sdk/node";
-var TIMEFRAME = "1m";
-var MetaApiMarketDataAdapter = class {
-  provider = "metaapi";
-  api;
-  accountId;
-  constructor(token, accountId) {
-    this.api = new MetaApi2(token);
-    this.accountId = accountId;
+// src/adapters/marketData/TwelveDataMarketDataAdapter.ts
+function parseTimestamp(datetime) {
+  const normalized = datetime.includes("T") ? datetime : datetime.replace(" ", "T");
+  const utcDatetime = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`;
+  const timestamp = new Date(utcDatetime).getTime();
+  if (!Number.isFinite(timestamp)) {
+    throw new Error("Twelve Data returned a candle with an invalid datetime.");
   }
+  return timestamp;
+}
+function parsePrice(value, field) {
+  const price = Number(value);
+  if (!Number.isFinite(price)) {
+    throw new Error(`Twelve Data returned an invalid ${field} price.`);
+  }
+  return price;
+}
+var TwelveDataMarketDataAdapter = class {
+  constructor(apiKey, fetchImpl = fetch) {
+    this.apiKey = apiKey;
+    this.fetchImpl = fetchImpl;
+  }
+  provider = "twelvedata";
   async getRecentCandles(symbol, count) {
-    const account = await this.api.metatraderAccountApi.getAccount(this.accountId);
-    if (account.state !== "DEPLOYED") {
-      await account.deploy();
+    if (!Number.isInteger(count) || count < 1 || count > 5e3) {
+      throw new RangeError("Twelve Data candle count must be an integer from 1 to 5000.");
     }
-    await account.waitConnected();
-    const raw = await account.getHistoricalCandles(symbol, TIMEFRAME, void 0, count);
-    return raw.map((candle) => ({
-      timestamp: new Date(candle.time).getTime(),
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close
+    const url = new URL("https://api.twelvedata.com/time_series");
+    url.search = new URLSearchParams({
+      symbol,
+      interval: "1min",
+      outputsize: String(count),
+      order: "ASC",
+      apikey: this.apiKey
+    }).toString();
+    const response = await this.fetchImpl(url);
+    if (!response.ok) {
+      throw new Error(`Twelve Data request failed with HTTP ${response.status}.`);
+    }
+    const payload = await response.json();
+    if (payload.status === "error" || !Array.isArray(payload.values)) {
+      throw new Error(payload.message || "Twelve Data did not return candle data.");
+    }
+    return payload.values.map((candle) => ({
+      timestamp: parseTimestamp(candle.datetime),
+      open: parsePrice(candle.open, "open"),
+      high: parsePrice(candle.high, "high"),
+      low: parsePrice(candle.low, "low"),
+      close: parsePrice(candle.close, "close")
     })).sort((a, b) => a.timestamp - b.timestamp);
   }
 };
@@ -1706,7 +1660,7 @@ var cached6;
 function getMarketDataAdapter() {
   if (!cached6) {
     const env2 = getEnv();
-    cached6 = env2.MARKET_DATA_PROVIDER === "metaapi" ? new MetaApiMarketDataAdapter(env2.META_API_TOKEN, env2.META_API_ACCOUNT_ID) : new SimulatorMarketDataAdapter();
+    cached6 = env2.MARKET_DATA_PROVIDER === "twelvedata" ? new TwelveDataMarketDataAdapter(env2.TWELVE_DATA_API_KEY) : new SimulatorMarketDataAdapter();
   }
   return cached6;
 }

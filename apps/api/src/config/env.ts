@@ -38,42 +38,23 @@ const envSchema = z
      *  production while working fine in dev. "none" forces `secure: true`
      *  regardless of NODE_ENV, since browsers require that combination. */
     COOKIE_SAME_SITE: z.enum(["lax", "none"]).default("lax"),
-    /** Trader-track integrations. Every one of these defaults to a safe,
-     *  synthetic-data simulator — the same "build the seam, default to a
-     *  stub" discipline as EMAIL_PROVIDER above — until the client supplies
-     *  real vendor credentials (see apps/marketing's README for what each
-     *  real value needs). `metaapi` is the existing hinted vendor
-     *  (`MtAccount.metaApiId`/`copyFactoryId`) for both market data and
-     *  broker-account linking; the real payment value name is a
-     *  placeholder — `packages/core/src/ledger.ts` already assumes
-     *  Paystack elsewhere in this project, so confirm the processor before
-     *  wiring a real PaymentAdapter. */
-    MARKET_DATA_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
-    BROKER_LINK_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+    /** Trader-track integrations. Market data and broker verification both
+     *  default to safe local simulators. Twelve Data only provides candles;
+     *  it cannot verify an MT4/5 login, so broker linking remains simulated. */
+    MARKET_DATA_PROVIDER: z.enum(["simulator", "twelvedata"]).default("simulator"),
+    BROKER_LINK_PROVIDER: z.enum(["simulator"]).default("simulator"),
     PAYMENT_PROVIDER: z.enum(["simulator", "real"]).default("simulator"),
     LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
-    META_API_TOKEN: z.string().optional(),
-    /** The MetaApi account id (not a broker login) of one dedicated demo
-     *  account Nouveau keeps connected purely as a market-data feed for
-     *  every trader's signal requests — see MetaApiMarketDataAdapter. */
-    META_API_ACCOUNT_ID: z.string().optional(),
+    TWELVE_DATA_API_KEY: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
   })
   .refine((env) => env.EMAIL_PROVIDER !== "resend" || Boolean(env.RESEND_API_KEY && env.EMAIL_FROM), {
     message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
     path: ["EMAIL_PROVIDER"],
   })
-  .refine((env) => env.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env.META_API_TOKEN), {
-    message: "META_API_TOKEN is required when MARKET_DATA_PROVIDER=metaapi",
+  .refine((env) => env.MARKET_DATA_PROVIDER !== "twelvedata" || Boolean(env.TWELVE_DATA_API_KEY?.trim()), {
+    message: "TWELVE_DATA_API_KEY is required when MARKET_DATA_PROVIDER=twelvedata",
     path: ["MARKET_DATA_PROVIDER"],
-  })
-  .refine((env) => env.MARKET_DATA_PROVIDER !== "metaapi" || Boolean(env.META_API_ACCOUNT_ID), {
-    message: "META_API_ACCOUNT_ID is required when MARKET_DATA_PROVIDER=metaapi (the shared house MT account used as the market-data feed)",
-    path: ["MARKET_DATA_PROVIDER"],
-  })
-  .refine((env) => env.BROKER_LINK_PROVIDER !== "metaapi" || Boolean(env.META_API_TOKEN), {
-    message: "META_API_TOKEN is required when BROKER_LINK_PROVIDER=metaapi",
-    path: ["BROKER_LINK_PROVIDER"],
   })
   .refine((env) => env.LLM_NARRATION_PROVIDER !== "anthropic" || Boolean(env.ANTHROPIC_API_KEY), {
     message: "ANTHROPIC_API_KEY is required when LLM_NARRATION_PROVIDER=anthropic",

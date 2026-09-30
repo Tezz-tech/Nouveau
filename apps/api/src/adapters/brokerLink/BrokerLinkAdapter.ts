@@ -18,10 +18,10 @@ export interface BrokerLinkResult {
  * Confirms a trader's own broker account is real and reachable read-only,
  * before Nouveau starts pulling live analysis from it. Everything vendor-
  * specific goes behind this interface, same discipline as `KycAdapter` —
- * only `SimulatorBrokerLinkAdapter` exists so far. `MtAccount.metaApiId`
- * already hints MetaApi (metaapi.cloud) as the intended real provider,
- * reusing the same vendor relationship the investor track's copy-trading
- * needs.
+ * only `SimulatorBrokerLinkAdapter` is available. Twelve Data supplies
+ * market candles but cannot verify MT4/5 credentials; choose a broker or
+ * integration that supports account verification before enabling this for
+ * real users.
  */
 export interface BrokerLinkAdapter {
   readonly provider: string;

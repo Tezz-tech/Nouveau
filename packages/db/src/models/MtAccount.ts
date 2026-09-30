@@ -52,8 +52,6 @@ const mtAccountSchema = new Schema(
       enum: ["trading_password", "investor_password"],
       required: false,
     },
-    metaApiId: { type: String, required: false },
-    copyFactoryId: { type: String, required: false },
     status: {
       type: String,
       enum: ["pending", "active", "suspended", "closed"],

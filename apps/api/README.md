@@ -79,11 +79,10 @@ just resolves through those rather than re-deciding anything itself.
   ID integration yet — the brief presents them as an either/or and doesn't
   pick one.
 - **`adapters/marketData/`, `adapters/brokerLink/`, `adapters/payment/`,
-  `adapters/narration/`** — trader-track integrations, each the same
-  interface + safe-simulator-default + env-gated-real-implementation shape
-  as `adapters/kyc/`. All four currently run on their simulator only (see
-  "Assumptions flagged" below for exactly what real credentials each real
-  implementation is waiting on).
+  `adapters/narration/`** — trader-track integrations behind interfaces
+  with safe simulator/template defaults. Market data can use Twelve Data;
+  broker linking and payments still use simulators (see "Assumptions
+  flagged" below for remaining vendor decisions).
 - **`adapters/email/`** — `EmailAdapter` interface + `ConsoleEmailAdapter`
   (logs instead of sending) and `ResendEmailAdapter` (client's chosen
   provider, talks to Resend's REST API directly over `fetch`).
@@ -125,13 +124,14 @@ and `KMS_LOCAL_MASTER_KEY` need real random values
 (`openssl rand -base64 32` for the KMS key specifically, since it's
 base64-decoded to exactly 32 bytes).
 
-The trader-track integrations each default to their simulator and don't
-need any env vars set for local dev: `MARKET_DATA_PROVIDER`,
-`BROKER_LINK_PROVIDER`, `PAYMENT_PROVIDER`, `LLM_NARRATION_PROVIDER`. Flip
-one to its real value only once the matching credential exists (see
-"Assumptions flagged") — `config/env.ts` refuses to boot if a real provider
-is selected without its credential, and refuses to boot with
-`TRADING_MODE=live` while *any* of these is still on its simulator.
+The trader-track integrations default to simulators/templates and don't
+need vendor env vars set for local dev. To fetch real candle data, set
+`MARKET_DATA_PROVIDER=twelvedata` and `TWELVE_DATA_API_KEY`. Twelve Data
+does not verify MT4/5 logins, so `BROKER_LINK_PROVIDER` remains `simulator`
+until a broker-verification provider is selected. Other provider settings
+are `PAYMENT_PROVIDER` and `LLM_NARRATION_PROVIDER`. `config/env.ts` checks
+required credentials and refuses to boot with `TRADING_MODE=live` while any
+provider is still simulated.
 
 ## Running
 
@@ -246,33 +246,19 @@ the client's project already lives.
    a partner is signed (Phase 5). This is the one onboarding step most
    likely to need a real rework once a broker is selected — everything else
    in the wizard should be unaffected.
-3. **The trader track (2026-09-28) is architecturally complete but running
-   entirely on simulators** — real signals, real broker verification, and
-   real billing all need a vendor relationship only the client can set up:
-   - **MetaApi** (metaapi.cloud) for `MARKET_DATA_PROVIDER=metaapi` and
-     `BROKER_LINK_PROVIDER=metaapi`. `MetaApiMarketDataAdapter` and
-     `MetaApiBrokerLinkAdapter` (2026-09-30) are written against the real
-     `metaapi.cloud-sdk` v29 package and typecheck, but **are unverified
-     against a live MetaApi account** — there is no `META_API_TOKEN`
-     configured anywhere to test against yet. Treat the first real call as
-     the actual verification step. Two things to know before flipping this
-     on:
-     - `MARKET_DATA_PROVIDER=metaapi` additionally requires
-       `META_API_ACCOUNT_ID` — the id of one dedicated demo MT account kept
-       connected purely as a shared price feed for every trader's signal
-       request (not any individual trader's own account).
-     - `BROKER_LINK_PROVIDER=metaapi` creates a temporary MetaApi account
-       per verification call, tied to a "provisioning profile" for that
-       broker server. A brand-new profile only reaches MetaApi's "active"
-       status once the broker's `servers.dat`/`broker.srv` file is uploaded
-       to it — a manual, broker-specific step this code cannot do on its
-       own. Many common broker servers are already recognized by MetaApi
-       without it; an obscure one will fail verification with a real,
-       surfaced error rather than a false "verified: true".
-     Set `META_API_TOKEN` (and `META_API_ACCOUNT_ID` for market data) in
-     `.env` once the client has an account and token — never paste either
-     into chat. The same token covers the investor track's copy-trading
-     too, per `MtAccount.metaApiId`/`copyFactoryId`.
+3. **The trader track (2026-09-28) has working signal calculations but
+   real-vendor support is partial**:
+   - **Twelve Data** supplies forex candles to the deterministic signal
+     engine. Set `MARKET_DATA_PROVIDER=twelvedata` and `TWELVE_DATA_API_KEY`
+     in the API's private `.env`; the adapter requests 1-minute OHLC candles.
+     Check symbol availability and current limits in the Twelve Data
+     dashboard. The free Basic plan is for personal/internal,
+     non-commercial use, so confirm licensing before serving signals to
+     customers.
+   - Twelve Data does not connect to traders' MT4/5 accounts. Broker-link
+     verification remains simulated until a suitable broker or integration
+     is selected; simulator approval is not verification of a real account.
+   - Investor-side MetaApi/CopyFactory copy-trading is not implemented.
    - **A payment processor** for `PAYMENT_PROVIDER=real` —
      `@nouveau/core`'s `ledger.ts` already assumes Paystack in its own
      comments, so confirm that's still the intended processor before
