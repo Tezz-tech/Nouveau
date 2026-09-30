@@ -1406,6 +1406,60 @@ function createSignalsRouter(marketDataAdapter, narrationAdapter) {
   return router;
 }
 
+// src/routes/marketChat.ts
+import { Router as Router6 } from "express";
+import { z as z5 } from "zod";
+
+// src/services/marketChatService.ts
+function summarize(symbol, candles) {
+  const first = candles[0];
+  const latest = candles[candles.length - 1];
+  const high = Math.max(...candles.map((candle) => candle.high));
+  const low = Math.min(...candles.map((candle) => candle.low));
+  const changePercent = first.close === 0 ? 0 : (latest.close - first.close) / first.close * 100;
+  const direction = changePercent > 0 ? "up" : changePercent < 0 ? "down" : "unchanged";
+  return {
+    symbol,
+    message: `${symbol} snapshot: latest close ${latest.close}; ${direction} ${Math.abs(changePercent).toFixed(3)}% across the returned candles. The period's high was ${high} and low was ${low}. This is price data, not a buy/sell recommendation.`,
+    dataSource: "unknown",
+    priceSeries: candles.map((candle, day) => ({ day, price: candle.close })),
+    latest: {
+      timestamp: latest.timestamp,
+      open: latest.open,
+      high: latest.high,
+      low: latest.low,
+      close: latest.close
+    },
+    changePercent,
+    observedAt: Date.now()
+  };
+}
+async function getMarketChatSnapshot(symbol, marketDataAdapter) {
+  const candles = await marketDataAdapter.getRecentCandles(symbol, 60);
+  if (candles.length === 0) {
+    throw new HttpError(503, `No market data is available for ${symbol} yet.`);
+  }
+  const snapshot = summarize(symbol, candles);
+  snapshot.dataSource = marketDataAdapter.provider;
+  return snapshot;
+}
+
+// src/routes/marketChat.ts
+var pairSchema = z5.object({ base: z5.string().regex(/^[A-Z]{3}$/), quote: z5.string().regex(/^[A-Z]{3}$/) });
+var messageSchema = z5.object({ message: z5.string().trim().min(1).max(300) });
+function createMarketChatRouter(marketDataAdapter) {
+  const router = Router6();
+  router.use(requireAuth, signalsRateLimit);
+  router.post("/:base/:quote", asyncHandler(async (req, res) => {
+    const pair = pairSchema.safeParse({ base: req.params.base?.toUpperCase(), quote: req.params.quote?.toUpperCase() });
+    if (!pair.success) throw new HttpError(400, "Pair must look like EUR/USD.");
+    messageSchema.parse(req.body);
+    const result = await getMarketChatSnapshot(`${pair.data.base}/${pair.data.quote}`, marketDataAdapter);
+    res.status(200).json(result);
+  }));
+  return router;
+}
+
 // src/app.ts
 function createApp(deps) {
   const env2 = getEnv();
@@ -1440,6 +1494,7 @@ function createApp(deps) {
   app2.use("/account", createAccountRouter());
   app2.use("/account", createLedgerRouter(deps.paymentAdapter));
   app2.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
+  app2.use("/market-chat", createMarketChatRouter(deps.marketDataAdapter));
   app2.use(errorHandler);
   return app2;
 }

@@ -50,6 +50,12 @@ just resolves through those rather than re-deciding anything itself.
   (`services/signalDisclaimer.ts` holds the versioned disclaimer text shown
   alongside every signal, same versioning discipline as
   `LPOA_DOCUMENT_VERSION`).
+- **`routes/marketChat.ts`** (`POST /market-chat/:base/:quote`) — factual
+  market snapshots available to any authenticated user. It returns the latest
+  60 one-minute candles and a price summary, with no buy/sell recommendation,
+  subscription requirement, order placement, or effect on investor funds.
+  The configured market-data provider determines whether returned prices are
+  simulated or supplied by Twelve Data.
 - **`routes/profile.ts`** (`GET /account/profile`) — read-only account
   summary (email, `accountType`, KYC status, broker account details,
   subscription for a trader) for the dashboard's Profile/Billing pages.

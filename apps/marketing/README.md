@@ -129,9 +129,9 @@ Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
 `/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
 then broker-account+lpoa for an investor OR broker-link+plan for a trader,
 then credentials shared by both, then complete), `/dashboard/*` (root —
-Overview for an investor, Analytics for a trader — plus analytics, funding,
-withdraw, transactions, history, billing, profile, each guarded against the
-account type it doesn't belong to). The onboarding and dashboard routes
+Overview for an investor, Analytics for a trader — plus shared informational
+Market Chat, analytics, funding, withdraw, transactions, history, billing,
+profile, with account-specific routes guarded by account type). The onboarding and dashboard routes
 render without the site's header/footer (see `App.tsx`'s `SiteLayout`
 split) — they're focused task/app flows, not pages to navigate away from
 mid-step.

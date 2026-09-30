@@ -10,6 +10,7 @@ import { createOnboardingRouter } from "./routes/onboarding";
 import { createAccountRouter } from "./routes/profile";
 import { createLedgerRouter } from "./routes/ledger";
 import { createSignalsRouter } from "./routes/signals";
+import { createMarketChatRouter } from "./routes/marketChat";
 import type { EmailAdapter } from "./adapters/email/EmailAdapter";
 import type { KycAdapter } from "./adapters/kyc/KycAdapter";
 import type { BrokerLinkAdapter } from "./adapters/brokerLink/BrokerLinkAdapter";
@@ -65,6 +66,7 @@ export function createApp(deps: AppDependencies): Express {
   app.use("/account", createAccountRouter());
   app.use("/account", createLedgerRouter(deps.paymentAdapter));
   app.use("/signals", createSignalsRouter(deps.marketDataAdapter, deps.narrationAdapter));
+  app.use("/market-chat", createMarketChatRouter(deps.marketDataAdapter));
 
   app.use(errorHandler);
 

@@ -9,6 +9,7 @@ import Transactions from "./Transactions";
 import TradingHistory from "./TradingHistory";
 import Billing from "./Billing";
 import Profile from "./Profile";
+import MarketChat from "./MarketChat";
 import { useAuth, type AccountType } from "@/lib/AuthContext";
 
 /** Guards a track-specific page against being opened directly by the other
@@ -45,6 +46,7 @@ export default function DashboardModule() {
     <Routes>
       <Route element={<DashboardLayout />}>
         <Route index element={<DashboardHome />} />
+        <Route path="market-chat" element={<MarketChat />} />
         <Route
           path="analytics"
           element={

@@ -35,3 +35,18 @@ export function getSignal(symbol: string): Promise<SignalResponse> {
   const [base, quote] = symbol.split("/");
   return api.get<SignalResponse>(`/signals/${base}/${quote}`);
 }
+
+export interface MarketChatResponse {
+  symbol: string;
+  message: string;
+  dataSource: string;
+  priceSeries: { day: number; price: number }[];
+  latest: { timestamp: number; open: number; high: number; low: number; close: number };
+  changePercent: number;
+  observedAt: number;
+}
+
+export function askMarketChat(symbol: string, message: string): Promise<MarketChatResponse> {
+  const [base, quote] = symbol.split("/");
+  return api.post<MarketChatResponse>(`/market-chat/${base}/${quote}`, { message });
+}

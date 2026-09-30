@@ -11,13 +11,12 @@ import { LiveDot } from "./components/DashboardUI";
 
 type NavItem = { to: string; label: string; icon: IconName; end?: boolean };
 
-/** Investor dashboard is the deposit/AI-trading product built earlier — no
- *  analytics/signals here, since an investor doesn't self-trade. Trader
- *  dashboard is the self-directed product: analytics is the home page, and
- *  there are no deposit-flow pages at all — Nouveau never holds a trader's
- *  money. */
+/** Investor dashboard is the deposit/managed-strategy product. Market chat
+ *  is a separate informational market-data view; it never affects a cycle
+ *  or places a trade. Trader dashboard is self-directed and has analytics. */
 const INVESTOR_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Overview", icon: "overview", end: true },
+  { to: "/dashboard/market-chat", label: "Market Chat", icon: "marketChat" },
   { to: "/dashboard/funding", label: "Funding", icon: "funding" },
   { to: "/dashboard/withdraw", label: "Withdraw", icon: "withdraw" },
   { to: "/dashboard/transactions", label: "Activity", icon: "transactions" },
@@ -27,6 +26,7 @@ const INVESTOR_NAV_ITEMS: NavItem[] = [
 
 const TRADER_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Analytics", icon: "analytics", end: true },
+  { to: "/dashboard/market-chat", label: "Market Chat", icon: "marketChat" },
   { to: "/dashboard/billing", label: "Billing", icon: "billing" },
   { to: "/dashboard/profile", label: "Profile", icon: "profile" },
 ];

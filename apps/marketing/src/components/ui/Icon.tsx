@@ -22,6 +22,7 @@ import {
   TrendingUp,
   CheckCircle2,
   Link2,
+  MessageCircle,
   type LucideProps,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ const registry = {
   atRisk: TrendingUp,
   success: CheckCircle2,
   broker: Link2,
+  marketChat: MessageCircle,
 } as const;
 
 export type IconName = keyof typeof registry;
