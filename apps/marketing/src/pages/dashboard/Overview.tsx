@@ -76,6 +76,7 @@ export default function Overview() {
           <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile
               index={1}
+              icon="overview"
               label="Total equity"
               value={formatCents(overview.totalEquityCents)}
               delta={equityDeltaPct}
@@ -83,12 +84,19 @@ export default function Overview() {
             />
             <StatTile
               index={2}
+              icon="custody"
               label="Custody balance"
               value={formatCents(overview.custodyCents)}
               hint="Segregated — never traded"
             />
-            <StatTile index={3} label="At-risk balance" value={formatCents(overview.atRiskCents)} hint="Trading sub-account" />
-            <StatTile index={4} label="Cycle target" value={target ? formatCents(overview.targetCents!) : "—"} />
+            <StatTile
+              index={3}
+              icon="atRisk"
+              label="At-risk balance"
+              value={formatCents(overview.atRiskCents)}
+              hint="Trading sub-account"
+            />
+            <StatTile index={4} icon="target" label="Cycle target" value={target ? formatCents(overview.targetCents!) : "—"} />
           </div>
 
           {target && (

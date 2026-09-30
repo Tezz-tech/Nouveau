@@ -8,6 +8,18 @@ import {
   Cpu,
   Eye,
   GraduationCap,
+  LayoutGrid,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Receipt,
+  CandlestickChart,
+  CircleUserRound,
+  Activity,
+  CreditCard,
+  LogOut,
+  Target,
+  Lock,
+  TrendingUp,
   type LucideProps,
 } from "lucide-react";
 
@@ -22,6 +34,19 @@ const registry = {
   ai: BrainCircuit,
   transparency: Eye,
   education: GraduationCap,
+  // Dashboard nav + stat-tile icons
+  overview: LayoutGrid,
+  funding: ArrowDownToLine,
+  withdraw: ArrowUpFromLine,
+  transactions: Receipt,
+  history: CandlestickChart,
+  profile: CircleUserRound,
+  analytics: Activity,
+  billing: CreditCard,
+  logout: LogOut,
+  target: Target,
+  custody: Lock,
+  atRisk: TrendingUp,
 } as const;
 
 export type IconName = keyof typeof registry;

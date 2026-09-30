@@ -1,6 +1,7 @@
 import { type InputHTMLAttributes, type ReactNode } from "react";
 import clsx from "clsx";
 import RiseIn from "@/components/motion/RiseIn";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
 /**
  * A small, dashboard-only dark UI kit — deliberately separate from
@@ -11,7 +12,16 @@ import RiseIn from "@/components/motion/RiseIn";
  */
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={clsx("border border-navy-line/50 bg-navy px-5 py-4", className)}>{children}</div>;
+  return (
+    <div
+      className={clsx(
+        "border border-navy-line/50 bg-gradient-to-b from-navy to-navy-deep/60 px-5 py-4 shadow-[0_8px_24px_-16px_rgba(0,0,0,0.6)]",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** The "Real account, simulated payments" / "Not live yet" style banner,
@@ -67,6 +77,7 @@ export function StatTile({
   hint,
   delta,
   sparkline,
+  icon,
   index = 0,
 }: {
   label: string;
@@ -74,13 +85,17 @@ export function StatTile({
   hint?: string;
   delta?: number | null;
   sparkline?: number[];
+  icon?: IconName;
   index?: number;
 }) {
   return (
     <RiseIn index={index}>
       <Card className="transition-all duration-300 ease-house hover:-translate-y-0.5 hover:border-gold/40">
-        <p className="text-caption uppercase tracking-[0.08em] text-slate-light">{label}</p>
-        <p className="mt-1 font-mono-figure text-h3 text-paper">{value}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-caption uppercase tracking-[0.08em] text-slate-light">{label}</p>
+          {icon && <Icon name={icon} size={15} strokeWidth={1.75} className="shrink-0 text-gold/70" />}
+        </div>
+        <p className="mt-1.5 font-mono-figure text-h3 text-paper">{value}</p>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <p className="text-caption text-slate-light">{hint ?? " "}</p>
           {delta !== undefined && <Delta value={delta} />}
