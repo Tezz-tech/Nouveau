@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Seo from "@/components/Seo";
 import { Button } from "@/components/ui/Button";
 import RiseIn from "@/components/motion/RiseIn";
-import { DarkErrorBanner, DarkTextField, InfoBanner, PageHeading } from "./components/DashboardUI";
+import { DarkErrorBanner, DarkTextField, InfoBanner, PageHeading, SuccessFlash } from "./components/DashboardUI";
 import { withdraw } from "@/lib/ledgerApi";
 import { ApiError } from "@/lib/api";
 
@@ -14,12 +14,16 @@ import { ApiError } from "@/lib/api";
  * still simulated is the payout itself: no real bank transfer happens yet,
  * since no payment processor is connected (see the banner below and
  * apps/api/README.md).
+ *
+ * A successful withdrawal shows a brief confirmation here before returning
+ * to Overview, instead of navigating away instantly.
  */
 export default function Withdraw() {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [succeeded, setSucceeded] = useState(false);
   const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
@@ -35,13 +39,18 @@ export default function Withdraw() {
     setSubmitting(true);
     try {
       await withdraw(Math.round(dollars * 100));
-      navigate("/dashboard");
+      setSucceeded(true);
+      setTimeout(() => navigate("/dashboard"), 1100);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
       inFlight.current = false;
       setSubmitting(false);
     }
+  }
+
+  if (succeeded) {
+    return <SuccessFlash message={`Withdrawal of $${Number(amount).toLocaleString()} requested`} />;
   }
 
   return (
@@ -71,7 +80,7 @@ export default function Withdraw() {
           />
         </RiseIn>
         <RiseIn index={3}>
-          <Button tone="dark" type="submit" disabled={submitting} className="w-full justify-center">
+          <Button tone="dark" type="submit" disabled={submitting} className="w-full justify-center active:scale-[0.98] transition-transform">
             {submitting ? "Withdrawing…" : "Request withdrawal"}
           </Button>
         </RiseIn>

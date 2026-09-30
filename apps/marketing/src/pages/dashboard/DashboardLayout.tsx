@@ -7,6 +7,7 @@ import Icon, { type IconName } from "@/components/ui/Icon";
 import RouteFade from "@/components/motion/RouteFade";
 import { houseTransition } from "@/lib/motion";
 import { useAuth } from "@/lib/AuthContext";
+import { LiveDot } from "./components/DashboardUI";
 
 type NavItem = { to: string; label: string; icon: IconName; end?: boolean };
 
@@ -52,7 +53,7 @@ function LiveClock() {
 
 function DesktopNavLink({ item }: { item: NavItem }) {
   return (
-    <NavLink to={item.to} end={item.end} className="relative block px-3">
+    <NavLink to={item.to} end={item.end} className="group relative block px-3 active:scale-[0.98]" style={{ transition: "transform 0.15s ease" }}>
       {({ isActive }) => (
         <span className="relative flex items-center gap-3 px-3 py-2.5">
           {isActive && (
@@ -66,12 +67,15 @@ function DesktopNavLink({ item }: { item: NavItem }) {
             name={item.icon}
             size={18}
             strokeWidth={1.75}
-            className={clsx("relative shrink-0 transition-colors duration-200", isActive ? "text-gold" : "text-slate-light")}
+            className={clsx(
+              "relative shrink-0 transition-all duration-200 group-hover:scale-110",
+              isActive ? "text-gold" : "text-slate-light group-hover:text-gold-light"
+            )}
           />
           <span
             className={clsx(
               "relative text-small transition-colors duration-200",
-              isActive ? "text-paper" : "text-slate-light hover:text-paper"
+              isActive ? "text-paper" : "text-slate-light group-hover:text-paper"
             )}
           >
             {item.label}
@@ -84,10 +88,20 @@ function DesktopNavLink({ item }: { item: NavItem }) {
 
 function MobileNavLink({ item }: { item: NavItem }) {
   return (
-    <NavLink to={item.to} end={item.end} className="flex flex-1 flex-col items-center justify-center gap-1 py-2">
+    <NavLink
+      to={item.to}
+      end={item.end}
+      className="flex flex-1 flex-col items-center justify-center gap-1 py-2 active:scale-90"
+      style={{ transition: "transform 0.15s ease" }}
+    >
       {({ isActive }) => (
         <>
-          <Icon name={item.icon} size={20} strokeWidth={1.75} className={isActive ? "text-gold" : "text-slate-light"} />
+          <motion.span
+            animate={isActive ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+          >
+            <Icon name={item.icon} size={20} strokeWidth={1.75} className={isActive ? "text-gold" : "text-slate-light"} />
+          </motion.span>
           <span className={clsx("text-[10px] leading-none tracking-tight", isActive ? "text-paper" : "text-slate-light")}>
             {item.label}
           </span>
@@ -198,7 +212,10 @@ export default function DashboardLayout() {
       <main className="flex-1 bg-navy-deep px-4 pb-24 pt-6 md:px-10 md:pb-10 md:pt-10">
         <div className="mx-auto max-w-[1040px]">
           <div className="mb-6 flex items-center justify-between border-b border-navy-line/30 pb-3 text-caption text-slate-light">
-            <span className="uppercase tracking-[0.1em]">{modeBadge === "TRADER" ? "Live market data" : "Account dashboard"}</span>
+            <span className="flex items-center gap-2 uppercase tracking-[0.1em]">
+              <LiveDot />
+              {modeBadge === "TRADER" ? "Live market data" : "Account dashboard"}
+            </span>
             <LiveClock />
           </div>
           <RouteFade />

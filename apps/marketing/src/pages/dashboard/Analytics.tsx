@@ -18,6 +18,12 @@ const BIAS_TONE: Record<SignalResponse["bias"], string> = {
   hold: "text-slate-light",
 };
 
+const BIAS_BORDER: Record<SignalResponse["bias"], string> = {
+  buy: "border-l-gain",
+  sell: "border-l-loss",
+  hold: "border-l-navy-line",
+};
+
 /**
  * Trader track only — real live buy/sell analysis on the broker account the
  * trader linked. Reached either as `/dashboard` (an investor's index route
@@ -85,10 +91,10 @@ export default function Analytics() {
             key={p.symbol}
             type="button"
             onClick={() => setPairSymbol(p.symbol)}
-            className={`border px-3 py-1.5 font-mono-figure text-small transition-colors duration-200 ${
+            className={`border px-3 py-1.5 font-mono-figure text-small transition-all duration-200 active:scale-95 ${
               p.symbol === pairSymbol
-                ? "border-gold bg-gold text-navy-deep"
-                : "border-navy-line text-slate-light hover:border-gold hover:text-paper"
+                ? "border-gold bg-gold text-navy-deep shadow-[0_4px_16px_-4px_rgba(201,162,39,0.5)]"
+                : "border-navy-line text-slate-light hover:-translate-y-0.5 hover:border-gold hover:text-paper"
             }`}
           >
             {p.symbol}
@@ -113,7 +119,7 @@ export default function Analytics() {
 
           {signal ? (
             <>
-              <Card className="mt-4 flex items-baseline gap-3">
+              <Card className={`mt-4 flex items-baseline gap-3 border-l-4 ${BIAS_BORDER[signal.bias]}`}>
                 <span className="text-caption uppercase tracking-[0.08em] text-slate-light">Signal</span>
                 <span className={`font-display text-h3 ${BIAS_TONE[signal.bias]}`}>{BIAS_LABEL[signal.bias]}</span>
                 <span className="text-caption text-slate-light">({Math.round(signal.confidence * 100)}% confidence)</span>
@@ -138,26 +144,33 @@ export default function Analytics() {
             </InfoBanner>
           </div>
 
-          <form className="mt-4 space-y-6" aria-disabled="true" noValidate>
+          <form className="mt-4 space-y-6" noValidate>
+            {/* Side is a real, clickable toggle — everything below it (lot
+                size, stop loss, the submit button) stays genuinely disabled.
+                Letting this one control respond is a safe way to make the
+                preview feel interactive without implying a trade can
+                actually be placed. */}
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled
                 onClick={() => setSide("buy")}
                 aria-pressed={side === "buy"}
-                className={`flex-1 border px-4 py-2.5 text-small ${
-                  side === "buy" ? "border-gain bg-gain/15 text-gain" : "border-navy-line text-slate-light"
+                className={`flex-1 border px-4 py-2.5 text-small transition-all duration-200 active:scale-95 ${
+                  side === "buy"
+                    ? "border-gain bg-gain/15 text-gain shadow-[0_4px_16px_-4px_rgba(52,211,153,0.35)]"
+                    : "border-navy-line text-slate-light hover:border-gain/50 hover:text-paper"
                 }`}
               >
                 Buy
               </button>
               <button
                 type="button"
-                disabled
                 onClick={() => setSide("sell")}
                 aria-pressed={side === "sell"}
-                className={`flex-1 border px-4 py-2.5 text-small ${
-                  side === "sell" ? "border-loss bg-loss/15 text-loss" : "border-navy-line text-slate-light"
+                className={`flex-1 border px-4 py-2.5 text-small transition-all duration-200 active:scale-95 ${
+                  side === "sell"
+                    ? "border-loss bg-loss/15 text-loss shadow-[0_4px_16px_-4px_rgba(248,113,113,0.35)]"
+                    : "border-navy-line text-slate-light hover:border-loss/50 hover:text-paper"
                 }`}
               >
                 Sell

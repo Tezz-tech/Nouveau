@@ -16,6 +16,16 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value
   );
 }
 
+function formatCentsNumber(cents: number): string {
+  return formatCents(String(Math.round(cents)));
+}
+
+const ACTIVITY_DOT_TONE: Record<string, string> = {
+  deposit: "bg-gain",
+  withdrawal_requested: "bg-slate-light",
+  withdrawal_completed: "bg-loss",
+};
+
 /**
  * Real account data — GET /account/overview and /account/transactions,
  * computed by @nouveau/api from persisted ledger transactions, never
@@ -77,26 +87,39 @@ export default function Overview() {
             <StatTile
               index={1}
               icon="overview"
+              tone="gold"
               label="Total equity"
-              value={formatCents(overview.totalEquityCents)}
+              valueCents={totalEquity}
+              format={formatCentsNumber}
               delta={equityDeltaPct}
               sparkline={sparklinePoints}
             />
             <StatTile
               index={2}
               icon="custody"
+              tone="info"
               label="Custody balance"
-              value={formatCents(overview.custodyCents)}
+              valueCents={Number(overview.custodyCents)}
+              format={formatCentsNumber}
               hint="Segregated — never traded"
             />
             <StatTile
               index={3}
               icon="atRisk"
+              tone="gain"
               label="At-risk balance"
-              value={formatCents(overview.atRiskCents)}
+              valueCents={Number(overview.atRiskCents)}
+              format={formatCentsNumber}
               hint="Trading sub-account"
             />
-            <StatTile index={4} icon="target" label="Cycle target" value={target ? formatCents(overview.targetCents!) : "—"} />
+            <StatTile
+              index={4}
+              icon="target"
+              tone="gold"
+              label="Cycle target"
+              valueCents={target}
+              format={formatCentsNumber}
+            />
           </div>
 
           {target && (
@@ -177,7 +200,10 @@ export default function Overview() {
                   {i < Math.min(transactions.length, 8) - 1 && (
                     <span className="absolute left-[5px] top-4 h-full w-px bg-navy-line/50" aria-hidden="true" />
                   )}
-                  <span className="z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-gold" aria-hidden="true" />
+                  <span
+                    className={`z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${ACTIVITY_DOT_TONE[entry.kind] ?? "bg-gold"}`}
+                    aria-hidden="true"
+                  />
                   <div>
                     <p className="text-small text-paper">
                       {entry.description}{" "}

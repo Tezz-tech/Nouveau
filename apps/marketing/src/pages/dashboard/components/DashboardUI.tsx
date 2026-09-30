@@ -1,4 +1,5 @@
-import { type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { animate, motion, useReducedMotion } from "framer-motion";
 import clsx from "clsx";
 import RiseIn from "@/components/motion/RiseIn";
 import Icon, { type IconName } from "@/components/ui/Icon";
@@ -71,31 +72,98 @@ export function Sparkline({ points, tone = "gold", className }: { points: number
   );
 }
 
+/** A softly pulsing dot — the honest way to signal "this is live" without
+ *  faking movement in a number that isn't actually changing in real time.
+ *  Pairs with genuinely-live things only (the clock, a "live" label), never
+ *  glued onto a static figure to make it merely look busier. */
+export function LiveDot({ tone = "gold" }: { tone?: "gold" | "gain" }) {
+  const dot = tone === "gain" ? "bg-gain" : "bg-gold";
+  return (
+    <span className="relative inline-flex h-2 w-2">
+      <span className={clsx("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", dot)} />
+      <span className={clsx("relative inline-flex h-2 w-2 rounded-full", dot)} />
+    </span>
+  );
+}
+
+const BADGE_TONE: Record<"gold" | "gain" | "loss" | "info", string> = {
+  gold: "bg-gold/10 text-gold",
+  gain: "bg-gain/10 text-gain",
+  loss: "bg-loss/10 text-loss",
+  info: "bg-info/10 text-info",
+};
+
+/** A small colored circle behind a stat-tile icon — purely categorical
+ *  variety (which bucket is this?), never a claim about performance; the
+ *  real gain/loss claim, when there is one, is `Delta`'s job. */
+export function IconBadge({ icon, tone = "gold" }: { icon: IconName; tone?: keyof typeof BADGE_TONE }) {
+  return (
+    <span className={clsx("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", BADGE_TONE[tone])}>
+      <Icon name={icon} size={14} strokeWidth={2} />
+    </span>
+  );
+}
+
+/** Counts from its previous value to a new one instead of snapping —
+ *  the classic "this dashboard is alive" cue for a number that just
+ *  changed. Respects prefers-reduced-motion by jumping straight to value. */
+export function AnimatedNumber({ value, format }: { value: number; format: (n: number) => string }) {
+  const reduced = useReducedMotion();
+  const [display, setDisplay] = useState(reduced ? value : 0);
+  const prevRef = useRef(reduced ? value : 0);
+
+  useEffect(() => {
+    if (reduced) {
+      setDisplay(value);
+      prevRef.current = value;
+      return;
+    }
+    const controls = animate(prevRef.current, value, {
+      duration: 0.9,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setDisplay(v),
+    });
+    prevRef.current = value;
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, reduced]);
+
+  return <>{format(display)}</>;
+}
+
 export function StatTile({
   label,
-  value,
+  valueCents,
+  format,
   hint,
   delta,
   sparkline,
   icon,
+  tone = "gold",
   index = 0,
 }: {
   label: string;
-  value: string;
+  /** null renders an em dash — for a figure that doesn't exist yet
+   *  (e.g. no cycle target before a first deposit), not a real zero. */
+  valueCents: number | null;
+  format: (n: number) => string;
   hint?: string;
   delta?: number | null;
   sparkline?: number[];
   icon?: IconName;
+  tone?: "gold" | "gain" | "loss" | "info";
   index?: number;
 }) {
   return (
     <RiseIn index={index}>
-      <Card className="transition-all duration-300 ease-house hover:-translate-y-0.5 hover:border-gold/40">
+      <Card className="group transition-all duration-300 ease-house hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-[0_16px_36px_-16px_rgba(201,162,39,0.35)]">
         <div className="flex items-center justify-between gap-2">
           <p className="text-caption uppercase tracking-[0.08em] text-slate-light">{label}</p>
-          {icon && <Icon name={icon} size={15} strokeWidth={1.75} className="shrink-0 text-gold/70" />}
+          {icon && <IconBadge icon={icon} tone={tone} />}
         </div>
-        <p className="mt-1.5 font-mono-figure text-h3 text-paper">{value}</p>
+        <p className="mt-2 font-mono-figure text-h3 text-paper">
+          {valueCents === null ? "—" : <AnimatedNumber value={valueCents} format={format} />}
+        </p>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <p className="text-caption text-slate-light">{hint ?? " "}</p>
           {delta !== undefined && <Delta value={delta} />}
@@ -136,6 +204,30 @@ export function DarkErrorBanner({ message }: { message: string }) {
     <div role="alert" className="border border-loss/50 bg-navy px-4 py-3 text-small text-paper">
       {message}
     </div>
+  );
+}
+
+/** A brief, satisfying confirmation for a real action that just succeeded
+ *  (a deposit, a withdrawal) — replaces an instant silent redirect with
+ *  visible proof something happened, before moving on. */
+export function SuccessFlash({ message }: { message: string }) {
+  const reduced = useReducedMotion();
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col items-center gap-4 py-16 text-center"
+    >
+      <motion.div
+        initial={reduced ? false : { scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 16, delay: 0.05 }}
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-gain/15 text-gain"
+      >
+        <Icon name="success" size={32} strokeWidth={1.75} />
+      </motion.div>
+      <p className="text-body text-paper">{message}</p>
+    </motion.div>
   );
 }
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Seo from "@/components/Seo";
 import { Button } from "@/components/ui/Button";
 import RiseIn from "@/components/motion/RiseIn";
-import { DarkErrorBanner, DarkTextField, InfoBanner, PageHeading } from "./components/DashboardUI";
+import { DarkErrorBanner, DarkTextField, InfoBanner, PageHeading, SuccessFlash } from "./components/DashboardUI";
 import { deposit } from "@/lib/ledgerApi";
 import { ApiError } from "@/lib/api";
 
@@ -16,12 +16,17 @@ import { ApiError } from "@/lib/api";
  * connected (see the banner below and apps/api/README.md) — the banner
  * must stay until a real processor is wired in, so a real user is never
  * led to think a real transfer just happened.
+ *
+ * A successful deposit shows a brief confirmation here before returning to
+ * Overview, instead of navigating away instantly — the previous instant
+ * redirect gave no visible proof anything had happened.
  */
 export default function Funding() {
   const navigate = useNavigate();
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [succeeded, setSucceeded] = useState(false);
   const inFlight = useRef(false);
 
   async function onSubmit(e: FormEvent) {
@@ -37,13 +42,18 @@ export default function Funding() {
     setSubmitting(true);
     try {
       await deposit(Math.round(dollars * 100));
-      navigate("/dashboard");
+      setSucceeded(true);
+      setTimeout(() => navigate("/dashboard"), 1100);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
       inFlight.current = false;
       setSubmitting(false);
     }
+  }
+
+  if (succeeded) {
+    return <SuccessFlash message={`Deposited $${Number(amount).toLocaleString()}`} />;
   }
 
   return (
@@ -73,7 +83,7 @@ export default function Funding() {
           />
         </RiseIn>
         <RiseIn index={3}>
-          <Button tone="dark" type="submit" disabled={submitting} className="w-full justify-center">
+          <Button tone="dark" type="submit" disabled={submitting} className="w-full justify-center active:scale-[0.98] transition-transform">
             {submitting ? "Depositing…" : "Deposit funds"}
           </Button>
         </RiseIn>

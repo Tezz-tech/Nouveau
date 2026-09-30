@@ -16,11 +16,13 @@ const config: Config = {
         gold: "#C9A227",
         "gold-light": "#E6CE8F",
         "gold-deep": "#8A6D1C",
-        // Trading-platform semantic colors — gains/losses only, never used
-        // decoratively. Chosen to read clearly against navy/navy-deep,
-        // where the dashboard's dark surfaces live.
+        // Trading-platform semantic colors, chosen to read clearly against
+        // navy/navy-deep. gain/loss mean exactly that, never decorative;
+        // info is a neutral cool accent for categorical variety (a stat
+        // tile's icon tint) that makes no claim about performance.
         gain: "#34D399",
         loss: "#F87171",
+        info: "#60A5FA",
       },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],
