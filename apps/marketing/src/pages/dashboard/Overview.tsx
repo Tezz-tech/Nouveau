@@ -6,6 +6,7 @@ import RiseIn from "@/components/motion/RiseIn";
 import { getOverview, getTransactions, formatCents, type Overview as OverviewData, type TransactionSummary } from "@/lib/ledgerApi";
 import { ApiError } from "@/lib/api";
 import { Card, DarkErrorBanner, InfoBanner, PageHeading, SectionHeading, StatTile } from "./components/DashboardUI";
+import MarketChat from "./MarketChat";
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: { value: number }[] }) {
   if (!active || !payload?.length) return null;
@@ -78,6 +79,10 @@ export default function Overview() {
       <div className="mt-8">
         <PageHeading>Account overview</PageHeading>
       </div>
+
+      <section className="mt-8" aria-label="Live forex market feed">
+        <MarketChat compact />
+      </section>
 
       {!overview && !error && <p className="mt-6 text-body text-slate-light">Loading…</p>}
 

@@ -15,7 +15,7 @@ function PriceTooltip({ active, payload }: { active?: boolean; payload?: { value
 
 /** Informational pair chat for both account types. It reports OHLC facts only;
  *  it is not the trader signal engine and cannot affect investor funds/trading. */
-export default function MarketChat() {
+export default function MarketChat({ compact = false }: { compact?: boolean }) {
   const [pairSymbol, setPairSymbol] = useState(TRADER_PAIRS[0]!.symbol);
   const [question, setQuestion] = useState("");
   const [snapshot, setSnapshot] = useState<MarketChatResponse | null>(null);
@@ -24,7 +24,7 @@ export default function MarketChat() {
   const [loading, setLoading] = useState(false);
   const requestId = useRef(0);
 
-  async function ask(symbol: string, prompt: string, appendQuestion: boolean) {
+  async function ask(symbol: string, prompt: string, appendQuestion: boolean, silent = false) {
     const currentRequest = ++requestId.current;
     setLoading(true);
     setError(null);
@@ -34,11 +34,13 @@ export default function MarketChat() {
       const result = await askMarketChat(symbol, prompt);
       if (currentRequest !== requestId.current) return;
       setSnapshot(result);
-      setMessages((current) => [
-        ...current,
-        ...(!appendQuestion ? [{ role: "user" as const, content: `Show me the latest ${symbol} market snapshot.` }] : []),
-        { role: "assistant", content: result.message },
-      ]);
+      if (!silent) {
+        setMessages((current) => [
+          ...current,
+          ...(!appendQuestion ? [{ role: "user" as const, content: `Show me the latest ${symbol} market snapshot.` }] : []),
+          { role: "assistant", content: result.message },
+        ]);
+      }
     } catch (err) {
       if (currentRequest !== requestId.current) return;
       setError(err instanceof ApiError ? err.message : "Couldn't load market data. Please try again.");
@@ -48,13 +50,18 @@ export default function MarketChat() {
   }
 
   useEffect(() => {
-    void ask(TRADER_PAIRS[0]!.symbol, "Show me the latest market snapshot.", false);
+    void ask(pairSymbol, `Show me the latest ${pairSymbol} market snapshot.`, false);
+    // Basic free API quota is limited; refresh the selected pair every two minutes.
+    const refreshId = window.setInterval(() => {
+      void ask(pairSymbol, `Refresh the ${pairSymbol} market snapshot.`, false, true);
+    }, 120_000);
     return () => {
+      window.clearInterval(refreshId);
       requestId.current += 1;
     };
-    // Fetch only once on first mount; pair changes are handled by the selector.
+    // Pair changes fetch immediately and restart the refresh timer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pairSymbol]);
 
   function submitQuestion(event: FormEvent) {
     event.preventDefault();
@@ -68,18 +75,17 @@ export default function MarketChat() {
     if (symbol === pairSymbol) return;
     setPairSymbol(symbol);
     setSnapshot(null);
-    void ask(symbol, "Show me the latest market snapshot.", false);
   }
 
   return (
     <>
-      <Seo title="Market chat" description="Ask for factual forex price snapshots from recent market candles." path="/dashboard/market-chat" />
+      {!compact && <Seo title="Market chat" description="Ask for factual forex price snapshots from recent market candles." path="/dashboard/market-chat" />}
       <InfoBanner>
         <strong className="font-text">Market data, not trade instructions.</strong> This chat summarizes recent candle prices only. It does not recommend trades, place orders, or change your deposited funds or managed strategy.
       </InfoBanner>
 
-      <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-        <PageHeading>Market chat</PageHeading>
+      <div className={`${compact ? "mt-0" : "mt-8"} flex flex-wrap items-end justify-between gap-4`}>
+        <PageHeading>{compact ? "Live market chat" : "Market chat"}</PageHeading>
         <label className="text-caption text-slate-light">
           Currency pair
           <select
@@ -105,13 +111,13 @@ export default function MarketChat() {
       )}
       {error && <div className="mt-5"><DarkErrorBanner message={error} /></div>}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+      <div className={`${compact ? "mt-4" : "mt-6"} grid gap-6 ${compact ? "xl:grid-cols-[1.5fr_1fr]" : "lg:grid-cols-[1.5fr_1fr]"}`}>
         <RiseIn>
           <Card>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <SectionHeading>{pairSymbol} price chart</SectionHeading>
-                <p className="mt-1 text-caption text-slate-light">Most recent 60 one-minute candles{snapshot ? ` · updated ${new Date(snapshot.observedAt).toLocaleTimeString()}` : ""}</p>
+                <p className="mt-1 text-caption text-slate-light">Most recent 60 one-minute candles · refreshes every 2 minutes{snapshot ? ` · updated ${new Date(snapshot.observedAt).toLocaleTimeString()}` : ""}</p>
               </div>
               <button type="button" disabled={loading} onClick={() => void ask(pairSymbol, "Refresh the market snapshot.", true)} className="border border-navy-line px-3 py-2 text-caption text-paper transition hover:border-gold disabled:opacity-50">
                 {loading ? "Fetching…" : "Refresh data"}
@@ -150,7 +156,7 @@ export default function MarketChat() {
         </RiseIn>
 
         <RiseIn index={1}>
-          <Card className="flex min-h-[25rem] flex-col">
+          <Card className={`flex ${compact ? "min-h-[21rem]" : "min-h-[25rem]"} flex-col`}>
             <SectionHeading>Market data assistant</SectionHeading>
             <p className="mt-1 text-caption text-slate-light">Ask for a factual snapshot. Replies are generated from the latest returned candles, not an AI model.</p>
             <div className="mt-5 flex-1 space-y-3 overflow-y-auto" aria-live="polite" aria-label="Market chat messages">

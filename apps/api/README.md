@@ -55,7 +55,9 @@ just resolves through those rather than re-deciding anything itself.
   60 one-minute candles and a price summary, with no buy/sell recommendation,
   subscription requirement, order placement, or effect on investor funds.
   The configured market-data provider determines whether returned prices are
-  simulated or supplied by Twelve Data.
+  simulated or supplied by Twelve Data. The dashboard refreshes the selected
+  pair every two minutes; Twelve Data is polled over REST, not streamed over
+  WebSockets.
 - **`routes/profile.ts`** (`GET /account/profile`) — read-only account
   summary (email, `accountType`, KYC status, broker account details,
   subscription for a trader) for the dashboard's Profile/Billing pages.

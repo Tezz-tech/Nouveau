@@ -161,6 +161,11 @@ them (a typed URL or stale bookmark, not the real security boundary —
 
 **Investor dashboard** — the deposit/AI-trading product, now backed by a
 real ledger (2026-09-28), not demo data:
+- **Market Chat** (`/dashboard/market-chat`, also embedded on Overview) —
+  pair selector, recent 1-minute candle chart, and a factual snapshot chat.
+  The selected pair refreshes every two minutes through the API. It is REST
+  polling, not a streaming feed, and the assistant does not provide trade
+  recommendations or alter investor funds.
 - **Overview** (`/dashboard`) — real account summary, a real equity chart
   (`recharts`, one point per ledger event), and a real recent-activity feed
   — all from `GET /account/overview` / `GET /account/transactions`
