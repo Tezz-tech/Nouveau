@@ -1,4 +1,5 @@
 import type { MarketDataAdapter } from "../adapters/marketData/MarketDataAdapter";
+import { CachedMarketDataAdapter } from "../adapters/marketData/CachedMarketDataAdapter";
 import { WATCHLIST, type WatchlistInstrument } from "../config/marketWatchlist";
 
 export interface LiveQuote {
@@ -86,14 +87,14 @@ function quoteFromCandles(instrument: WatchlistInstrument, candles: { close: num
   };
 }
 
-const QUOTE_CACHE_TTL_MS = 45_000;
+const QUOTE_CACHE_TTL_MS = 5 * 60_000;
 const quoteCache = new Map<string, { at: number; quote: LiveQuote }>();
 
+/** Last good batch, however old — a stale strip beats a blank strip. */
 function cachedQuote(symbol: string): LiveQuote | null {
   const entry = quoteCache.get(symbol);
   if (!entry) return null;
-  if (Date.now() - entry.at > QUOTE_CACHE_TTL_MS) return null;
-  return { ...entry.quote, stale: true };
+  return { ...entry.quote, stale: Date.now() - entry.at > QUOTE_CACHE_TTL_MS };
 }
 
 export function primeQuoteCache(quote: LiveQuote): void {
@@ -104,16 +105,20 @@ export function getCachedQuotes(): LiveQuote[] {
   return [...quoteCache.values()].map((e) => ({ ...e.quote, stale: Date.now() - e.at > QUOTE_CACHE_TTL_MS }));
 }
 
-/** One REST round per instrument; failures fall back to the 45s cache so a
- *  single vendor hiccup never blanks the whole Wall Street strip. */
+/** One cached round per instrument; failures fall back to the last good batch
+ *  so a single vendor hiccup never blanks the whole Wall Street strip.
+ *  Quotes need only 2 candles and refresh every few minutes (see the poller
+ *  in routes/market.ts), so the 5-min quota TTL absorbs almost all refreshes
+ *  — ~6 credits per cycle max, only when the TTL actually lapses. */
 export async function getLiveQuotes(marketDataAdapter: MarketDataAdapter): Promise<{ quotes: LiveQuote[]; dataSource: string }> {
   const quotes: LiveQuote[] = [];
   for (const instrument of WATCHLIST) {
     try {
-      const candles = await marketDataAdapter.getRecentCandles(instrument.symbol, 2);
+      const { candles, stale } = await getCachedCandles(marketDataAdapter, instrument.symbol, 2);
       const quote = quoteFromCandles(instrument, candles);
       if (quote) {
-        quoteCache.set(instrument.symbol, { at: Date.now(), quote });
+        quote.stale = stale;
+        if (!stale) quoteCache.set(instrument.symbol, { at: Date.now(), quote: { ...quote } });
         quotes.push(quote);
         continue;
       }
@@ -124,4 +129,15 @@ export async function getLiveQuotes(marketDataAdapter: MarketDataAdapter): Promi
     if (fallback) quotes.push(fallback);
   }
   return { quotes, dataSource: marketDataAdapter.provider };
+}
+
+async function getCachedCandles(
+  marketDataAdapter: MarketDataAdapter,
+  symbol: string,
+  count: number
+): Promise<{ candles: { close: number; timestamp: number }[]; stale: boolean }> {
+  if (marketDataAdapter instanceof CachedMarketDataAdapter) {
+    return marketDataAdapter.getRecentCandlesWithMeta(symbol, count);
+  }
+  return { candles: await marketDataAdapter.getRecentCandles(symbol, count), stale: false };
 }

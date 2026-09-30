@@ -44,6 +44,7 @@ export interface MarketChatResponse {
   latest: { timestamp: number; open: number; high: number; low: number; close: number };
   changePercent: number;
   observedAt: number;
+  stale: boolean;
 }
 
 export function askMarketChat(symbol: string, message: string): Promise<MarketChatResponse> {

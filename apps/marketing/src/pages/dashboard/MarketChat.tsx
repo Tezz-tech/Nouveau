@@ -51,10 +51,12 @@ export default function MarketChat({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     void ask(pairSymbol, `Show me the latest ${pairSymbol} market snapshot.`, false);
-    // Basic free API quota is limited; refresh the selected pair every two minutes.
+    // Free-tier quota is tight (~8 credits/min shared across ALL users): a
+    // 5-min server cache absorbs repeats, and the strip refreshes every 5
+    // minutes. Manual refresh is always available via the button.
     const refreshId = window.setInterval(() => {
       void ask(pairSymbol, `Refresh the ${pairSymbol} market snapshot.`, false, true);
-    }, 120_000);
+    }, 300_000);
     return () => {
       window.clearInterval(refreshId);
       requestId.current += 1;
@@ -104,9 +106,14 @@ export default function MarketChat({ compact = false }: { compact?: boolean }) {
           Showing simulated candles. Configure Twelve Data on the API server to fetch vendor market data.
         </div>
       )}
-      {snapshot?.dataSource === "twelvedata" && (
+      {snapshot?.dataSource === "twelvedata" && !snapshot.stale && (
         <div className="mt-5 border border-gain/30 bg-navy px-4 py-3 text-caption text-slate-light">
           Price data from Twelve Data. This is a recent candle snapshot, not a streaming/live tick feed.
+        </div>
+      )}
+      {snapshot?.stale && (
+        <div className="mt-5 border border-gold/40 bg-navy px-4 py-3 text-caption text-slate-light">
+          Delayed snapshot — Twelve Data's free quota is temporarily exhausted, so this is the last available data. It refreshes automatically once quota frees up.
         </div>
       )}
       {error && <div className="mt-5"><DarkErrorBanner message={error} /></div>}
@@ -117,7 +124,7 @@ export default function MarketChat({ compact = false }: { compact?: boolean }) {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <SectionHeading>{pairSymbol} price chart</SectionHeading>
-                <p className="mt-1 text-caption text-slate-light">Most recent 60 one-minute candles · refreshes every 2 minutes{snapshot ? ` · updated ${new Date(snapshot.observedAt).toLocaleTimeString()}` : ""}</p>
+                <p className="mt-1 text-caption text-slate-light">Most recent 60 one-minute candles · refreshes every 5 minutes{snapshot ? ` · updated ${new Date(snapshot.observedAt).toLocaleTimeString()}` : ""}{snapshot?.stale ? " · delayed" : ""}</p>
               </div>
               <button type="button" disabled={loading} onClick={() => void ask(pairSymbol, "Refresh the market snapshot.", true)} className="border border-navy-line px-3 py-2 text-caption text-paper transition hover:border-gold disabled:opacity-50">
                 {loading ? "Fetching…" : "Refresh data"}

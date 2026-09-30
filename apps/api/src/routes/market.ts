@@ -22,7 +22,7 @@ export function broadcastQuotes(quotes: unknown, dataSource: string): void {
 
 /**
  * Public live-market surface for the Overview "Wall Street strip".
- * `GET /market/quotes` is the polling fallback (45s server cache, ~60s
+ * `GET /market/quotes` is the polling fallback (5-min quota cache, ~4-min
  * client poll), `GET /market/stream` is the live SSE channel, and
  * `GET /market/sessions` drives the per-region "closing in 4h 35m" labels.
  * Auth is required so the Twelve Data quota can't be burned anonymously.
@@ -95,13 +95,27 @@ export async function refreshQuotesOnce(marketDataAdapter: MarketDataAdapter): P
 }
 
 let pollerStarted = false;
+let pollerTimer: ReturnType<typeof setInterval> | null = null;
 
-/** Single process-wide poller: every 60s refresh quotes and push to SSE. */
+/** Single process-wide poller: every 4 min refresh quotes and push to SSE.
+ *  4 min (not 60s) because Twelve Data's free tier is ~8 credits/min and one
+ *  full strip refresh costs up to 6 credits — a 60s poller plus any page
+ *  traffic 429s within minutes. The 5-min quota TTL absorbs most cycles, so
+ *  the strip usually re-broadcasts cache without spending a credit. */
 export function startMarketPoller(marketDataAdapter: MarketDataAdapter): void {
   if (pollerStarted) return;
   pollerStarted = true;
   void refreshQuotesOnce(marketDataAdapter);
-  setInterval(() => {
+  pollerTimer = setInterval(() => {
     void refreshQuotesOnce(marketDataAdapter);
-  }, 60_000);
+  }, 4 * 60_000);
+  // Never keep a serverless/test process alive just for the poller.
+  if (typeof pollerTimer.unref === "function") pollerTimer.unref();
+}
+
+/** Test-only escape hatch: stop the interval so suites exit cleanly. */
+export function stopMarketPollerForTests(): void {
+  if (pollerTimer) clearInterval(pollerTimer);
+  pollerTimer = null;
+  pollerStarted = false;
 }

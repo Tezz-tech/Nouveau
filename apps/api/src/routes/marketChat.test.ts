@@ -35,6 +35,7 @@ describe("POST /market-chat/:base/:quote", () => {
     expect(response.body.priceSeries).toHaveLength(60);
     expect(response.body.latest).toHaveProperty("close");
     expect(response.body.message).toContain("not a buy/sell recommendation");
+    expect(response.body.stale).toBe(false);
   });
 
   it("validates pair format and requires a non-empty chat question", async () => {

@@ -58,7 +58,7 @@ export default function MarketTicker() {
                 <p className="font-mono-figure text-small text-paper">{formatPrice(q.price, q.symbol)}</p>
                 <p className={`font-mono-figure text-caption ${q.changePercent >= 0 ? "text-gain" : "text-loss"}`}>
                   {q.changePercent >= 0 ? "+" : ""}{q.changePercent.toFixed(2)}%
-                  {q.stale ? " · stale" : ""}
+                  {q.stale ? " · delayed" : ""}
                 </p>
               </div>
             </div>
@@ -77,9 +77,10 @@ export default function MarketTicker() {
         <Card>
           <SectionHeading>How live is this?</SectionHeading>
           <p className="mt-1 text-caption text-slate-light">
-            Quotes stream over server-sent events and refresh every 60 seconds; Twelve Data is polled over REST by the
+            Quotes stream over server-sent events and refresh every few minutes; Twelve Data is polled over REST by the
             API, not over WebSockets. A real always-on WebSocket needs a persistent host — this build stays
-            serverless-safe.
+            serverless-safe. Free-tier quota is shared across all users, so snapshots may show as delayed rather than
+            erroring when the quota is exhausted.
           </p>
         </Card>
       </RiseIn>

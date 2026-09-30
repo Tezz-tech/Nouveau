@@ -1,5 +1,6 @@
 import type { Candle } from "@nouveau/core";
 import type { MarketDataAdapter } from "./MarketDataAdapter";
+import { VendorQuotaError } from "./CachedMarketDataAdapter";
 
 interface TwelveDataCandle {
   datetime: string;
@@ -75,13 +76,22 @@ export class TwelveDataMarketDataAdapter implements MarketDataAdapter {
     }).toString();
 
     const response = await this.fetchImpl(url);
+    if (response.status === 429) {
+      // Twelve Data free tier: ~8 credits/min. Surface a typed error so the
+      // caching layer can serve stale candles instead of 500ing the page.
+      throw new VendorQuotaError("Twelve Data rate limit reached (HTTP 429). Showing the last available snapshot.");
+    }
     if (!response.ok) {
       throw new Error(`Twelve Data request failed with HTTP ${response.status}.`);
     }
 
     const payload = (await response.json()) as TwelveDataTimeSeriesResponse;
     if (payload.status === "error" || !Array.isArray(payload.values)) {
-      throw new Error(payload.message || "Twelve Data did not return candle data.");
+      const message = payload.message || "Twelve Data did not return candle data.";
+      if (/rate.?limit|quota|too many requests|429/i.test(message)) {
+        throw new VendorQuotaError(message);
+      }
+      throw new Error(message);
     }
 
     return payload.values

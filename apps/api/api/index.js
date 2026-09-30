@@ -573,6 +573,71 @@ import cors from "cors";
 
 // src/middleware/errorHandler.ts
 import { ZodError } from "zod";
+
+// src/adapters/marketData/CachedMarketDataAdapter.ts
+var VendorQuotaError = class extends Error {
+  constructor(message = "Market data is temporarily rate-limited. Showing the last available snapshot.") {
+    super(message);
+    this.name = "VendorQuotaError";
+  }
+};
+var CachedMarketDataAdapter = class {
+  constructor(inner, ttlMs = 5 * 6e4) {
+    this.inner = inner;
+    this.ttlMs = ttlMs;
+    this.provider = inner.provider;
+  }
+  provider;
+  cache = /* @__PURE__ */ new Map();
+  inFlight = /* @__PURE__ */ new Map();
+  /** The wrapped vendor adapter — lets callers bypass the cache in tests. */
+  unwrap() {
+    return this.inner;
+  }
+  key(symbol, count) {
+    return `${symbol}::${count}`;
+  }
+  /** Last good candles for `symbol`/`count`, if any — even past TTL. */
+  peek(symbol, count) {
+    return this.cache.get(this.key(symbol, count))?.candles ?? null;
+  }
+  async getRecentCandles(symbol, count) {
+    const key = this.key(symbol, count);
+    const now = Date.now();
+    const hit = this.cache.get(key);
+    if (hit && now - hit.at < this.ttlMs) return hit.candles;
+    const ongoing = this.inFlight.get(key);
+    if (ongoing) return ongoing;
+    const fetch2 = this.inner.getRecentCandles(symbol, count).then((candles) => {
+      this.cache.set(key, { at: Date.now(), candles });
+      return candles;
+    }).catch((err) => {
+      const stale = this.cache.get(key)?.candles;
+      if (stale && isQuotaLike(err)) return stale;
+      throw err;
+    }).finally(() => {
+      if (this.inFlight.get(key) === fetch2) this.inFlight.delete(key);
+    });
+    this.inFlight.set(key, fetch2);
+    return fetch2;
+  }
+  /** Same as getRecentCandles but reports whether the result is stale. */
+  async getRecentCandlesWithMeta(symbol, count) {
+    const key = this.key(symbol, count);
+    const before = this.cache.get(key);
+    const candles = await this.getRecentCandles(symbol, count);
+    const after = this.cache.get(key);
+    const stale = before != null && after?.candles === before.candles && Date.now() - before.at >= this.ttlMs || after != null && Date.now() - after.at >= this.ttlMs;
+    return { candles, stale };
+  }
+};
+function isQuotaLike(err) {
+  if (err instanceof VendorQuotaError) return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /429|rate.?limit|quota|too many requests|5\d\d/i.test(message);
+}
+
+// src/middleware/errorHandler.ts
 var HttpError = class extends Error {
   constructor(status, message) {
     super(message);
@@ -586,6 +651,10 @@ function asyncHandler(handler2) {
   };
 }
 function errorHandler(err, req, res, next) {
+  if (err instanceof VendorQuotaError) {
+    res.status(503).json({ error: err.message });
+    return;
+  }
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
     return;
@@ -1425,16 +1494,17 @@ import { Router as Router6 } from "express";
 import { z as z5 } from "zod";
 
 // src/services/marketChatService.ts
-function summarize(symbol, candles) {
+function summarize(symbol, candles, stale) {
   const first = candles[0];
   const latest = candles[candles.length - 1];
   const high = Math.max(...candles.map((candle) => candle.high));
   const low = Math.min(...candles.map((candle) => candle.low));
   const changePercent = first.close === 0 ? 0 : (latest.close - first.close) / first.close * 100;
   const direction = changePercent > 0 ? "up" : changePercent < 0 ? "down" : "unchanged";
+  const freshness = stale ? " Delayed snapshot \u2014 live data is temporarily rate-limited." : "";
   return {
     symbol,
-    message: `${symbol} snapshot: latest close ${latest.close}; ${direction} ${Math.abs(changePercent).toFixed(3)}% across the returned candles. The period's high was ${high} and low was ${low}. This is price data, not a buy/sell recommendation.`,
+    message: `${symbol} snapshot: latest close ${latest.close}; ${direction} ${Math.abs(changePercent).toFixed(3)}% across the returned candles. The period's high was ${high} and low was ${low}.${freshness} This is price data, not a buy/sell recommendation.`,
     dataSource: "unknown",
     priceSeries: candles.map((candle, day) => ({ day, price: candle.close })),
     latest: {
@@ -1445,15 +1515,29 @@ function summarize(symbol, candles) {
       close: latest.close
     },
     changePercent,
-    observedAt: Date.now()
+    observedAt: Date.now(),
+    stale
   };
 }
 async function getMarketChatSnapshot(symbol, marketDataAdapter) {
-  const candles = await marketDataAdapter.getRecentCandles(symbol, 60);
+  let candles;
+  let stale = false;
+  if (marketDataAdapter instanceof CachedMarketDataAdapter) {
+    try {
+      ({ candles, stale } = await marketDataAdapter.getRecentCandlesWithMeta(symbol, 60));
+    } catch (err) {
+      if (err instanceof VendorQuotaError) {
+        throw new HttpError(503, err.message);
+      }
+      throw err;
+    }
+  } else {
+    candles = await marketDataAdapter.getRecentCandles(symbol, 60);
+  }
   if (candles.length === 0) {
     throw new HttpError(503, `No market data is available for ${symbol} yet.`);
   }
-  const snapshot = summarize(symbol, candles);
+  const snapshot = summarize(symbol, candles, stale);
   snapshot.dataSource = marketDataAdapter.provider;
   return snapshot;
 }
@@ -1628,13 +1712,12 @@ function quoteFromCandles(instrument, candles) {
     stale: false
   };
 }
-var QUOTE_CACHE_TTL_MS = 45e3;
+var QUOTE_CACHE_TTL_MS = 5 * 6e4;
 var quoteCache = /* @__PURE__ */ new Map();
 function cachedQuote(symbol) {
   const entry = quoteCache.get(symbol);
   if (!entry) return null;
-  if (Date.now() - entry.at > QUOTE_CACHE_TTL_MS) return null;
-  return { ...entry.quote, stale: true };
+  return { ...entry.quote, stale: Date.now() - entry.at > QUOTE_CACHE_TTL_MS };
 }
 function primeQuoteCache(quote) {
   quoteCache.set(quote.symbol, { at: Date.now(), quote });
@@ -1646,10 +1729,11 @@ async function getLiveQuotes(marketDataAdapter) {
   const quotes = [];
   for (const instrument of WATCHLIST) {
     try {
-      const candles = await marketDataAdapter.getRecentCandles(instrument.symbol, 2);
+      const { candles, stale } = await getCachedCandles(marketDataAdapter, instrument.symbol, 2);
       const quote = quoteFromCandles(instrument, candles);
       if (quote) {
-        quoteCache.set(instrument.symbol, { at: Date.now(), quote });
+        quote.stale = stale;
+        if (!stale) quoteCache.set(instrument.symbol, { at: Date.now(), quote: { ...quote } });
         quotes.push(quote);
         continue;
       }
@@ -1659,6 +1743,12 @@ async function getLiveQuotes(marketDataAdapter) {
     if (fallback) quotes.push(fallback);
   }
   return { quotes, dataSource: marketDataAdapter.provider };
+}
+async function getCachedCandles(marketDataAdapter, symbol, count) {
+  if (marketDataAdapter instanceof CachedMarketDataAdapter) {
+    return marketDataAdapter.getRecentCandlesWithMeta(symbol, count);
+  }
+  return { candles: await marketDataAdapter.getRecentCandles(symbol, count), stale: false };
 }
 
 // src/routes/market.ts
@@ -1733,13 +1823,15 @@ async function refreshQuotesOnce(marketDataAdapter) {
   }
 }
 var pollerStarted = false;
+var pollerTimer = null;
 function startMarketPoller(marketDataAdapter) {
   if (pollerStarted) return;
   pollerStarted = true;
   void refreshQuotesOnce(marketDataAdapter);
-  setInterval(() => {
+  pollerTimer = setInterval(() => {
     void refreshQuotesOnce(marketDataAdapter);
-  }, 6e4);
+  }, 4 * 6e4);
+  if (typeof pollerTimer.unref === "function") pollerTimer.unref();
 }
 
 // src/app.ts
@@ -1992,12 +2084,19 @@ var TwelveDataMarketDataAdapter = class {
       ...exchange ? { exchange } : {}
     }).toString();
     const response = await this.fetchImpl(url);
+    if (response.status === 429) {
+      throw new VendorQuotaError("Twelve Data rate limit reached (HTTP 429). Showing the last available snapshot.");
+    }
     if (!response.ok) {
       throw new Error(`Twelve Data request failed with HTTP ${response.status}.`);
     }
     const payload = await response.json();
     if (payload.status === "error" || !Array.isArray(payload.values)) {
-      throw new Error(payload.message || "Twelve Data did not return candle data.");
+      const message = payload.message || "Twelve Data did not return candle data.";
+      if (/rate.?limit|quota|too many requests|429/i.test(message)) {
+        throw new VendorQuotaError(message);
+      }
+      throw new Error(message);
     }
     return payload.values.map((candle) => ({
       timestamp: parseTimestamp(candle.datetime),
@@ -2014,7 +2113,7 @@ var cached6;
 function getMarketDataAdapter() {
   if (!cached6) {
     const env2 = getEnv();
-    cached6 = env2.MARKET_DATA_PROVIDER === "twelvedata" ? new TwelveDataMarketDataAdapter(env2.TWELVE_DATA_API_KEY) : new SimulatorMarketDataAdapter();
+    cached6 = env2.MARKET_DATA_PROVIDER === "twelvedata" ? new CachedMarketDataAdapter(new TwelveDataMarketDataAdapter(env2.TWELVE_DATA_API_KEY)) : new SimulatorMarketDataAdapter();
   }
   return cached6;
 }

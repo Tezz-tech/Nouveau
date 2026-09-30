@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { ZodError } from "zod";
+import { VendorQuotaError } from "../adapters/marketData/CachedMarketDataAdapter";
 
 export class HttpError extends Error {
   constructor(
@@ -22,6 +23,13 @@ export function asyncHandler(handler: (req: Request, res: Response, next: NextFu
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
+  // Vendor quota exhaustion is an expected, transient state on the free tier
+  // — 503 ("try again shortly"), never a 500. The message is safe to show:
+  // it names no keys, URLs, or internals.
+  if (err instanceof VendorQuotaError) {
+    res.status(503).json({ error: err.message });
+    return;
+  }
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
     return;

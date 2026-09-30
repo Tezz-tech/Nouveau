@@ -12,9 +12,11 @@ export interface LiveMarketState {
 
 /**
  * The Overview "Wall Street strip" data hook, shared by both tracks.
- * SSE (`GET /market/stream`) pushes quotes live; a 60s REST poll
+ * SSE (`GET /market/stream`) pushes quotes live; a 4-min REST poll
  * (`GET /market/quotes`) covers SSE gaps (Vercel cold instances, dropped
- * sockets). Sessions refresh every 60s — they only drive countdown labels.
+ * sockets). 4 min — not 60s — because Twelve Data's free tier is ~8
+ * credits/min shared across ALL users and a full strip costs up to 6.
+ * Sessions refresh on the same tick — they only drive countdown labels.
  */
 export function useLiveMarket(): LiveMarketState {
   const [quotes, setQuotes] = useState<LiveQuote[]>([]);
@@ -42,7 +44,7 @@ export function useLiveMarket(): LiveMarketState {
     }
 
     void poll();
-    const pollId = window.setInterval(poll, 60_000);
+    const pollId = window.setInterval(poll, 4 * 60_000);
 
     const unsubscribe = subscribeToQuotes((next, source) => {
       if (cancelled) return;

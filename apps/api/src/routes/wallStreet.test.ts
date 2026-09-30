@@ -75,4 +75,16 @@ describe("desk chat", () => {
     expect((await agent.post("/desk/messages").send({ body: "  " })).status).toBe(400);
     expect((await agent.post("/desk/messages").send({ body: "x".repeat(501) })).status).toBe(400);
   });
+
+  it("stale-flags cached quotes instead of blanking the strip", async () => {
+    const agent = await signedUpAgent("wall-street-stale@example.com");
+    const first = await agent.get("/market/quotes");
+    expect(first.status).toBe(200);
+    expect(first.body.quotes.length).toBeGreaterThan(0);
+    // Simulator never rate-limits, so these are fresh — the stale path is
+    // covered by the CachedMarketDataAdapter unit tests with a 429 mock.
+    for (const q of first.body.quotes as { stale: boolean }[]) {
+      expect(typeof q.stale).toBe("boolean");
+    }
+  });
 });
