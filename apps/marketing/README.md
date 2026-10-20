@@ -1,20 +1,20 @@
 # @nouveau/marketing
 
-Part of the Nouveau monorepo — see the [root README](../../README.md) for
-the overall platform. This package is the public marketing site: a public
-marketing site for Nouveau, a professional trading firm offering
-Fund Management, Trading Bots, and Trader Intelligence & Simulation.
-Positioning is institutional-grade and deliberately vague about the
-underlying trading strategy (proprietary by design) while being transparent
-about allocation logic and risk controls.
+Part of the Nouveau monorepo — see the [root README](../../README.md).
+This package is the public marketing site: a public marketing site for
+Nouveau, a professional trading firm offering Fund Management, Trading
+Bots, and Trader Intelligence & Simulation. Positioning is
+institutional-grade and deliberately vague about the underlying trading
+strategy (proprietary by design) while being transparent about allocation
+logic and risk controls.
 
-**This is also the entire frontend, not just the public pages.** Login,
-signup, the onboarding wizard (two tracks — see "Dashboard" below), and the
-account dashboard live here too, talking to the real `@nouveau/api` backend
-where real data exists — they started out as a separate `apps/web` project
-during Phase 2 and were merged back in once that was flagged as the wrong
-call. There is deliberately no second
-frontend app; see the root README's "One frontend, not several."
+**As of 2026-10-20, this is informational-only** — Home, Services, About,
+Support, NotFound. Login, signup, onboarding, and the account dashboard
+were removed along with the backend that powered them, pending a new
+architecture pattern. That prior state (including the `apps/api` backend
+and `packages/core`/`db`/`security`) is preserved in git history under the
+tag `pre-reset-2026-10-20` if anything needs to be referenced while the new
+pattern is designed.
 
 ## Stack
 
@@ -50,312 +50,21 @@ npm run preview -w @nouveau/marketing  # serves the production build locally
 ```
 
 Or `cd apps/marketing` first and drop the `-w @nouveau/marketing` from each
-command.
+command. No backend, API, or env vars are needed to run this right now —
+it's a static informational site.
 
-Auth/onboarding pages need `@nouveau/api` actually running — see
-`apps/api/README.md`. Copy `.env.example` to `.env.local` if the API isn't
-on `http://localhost:4000` (the built-in default); `VITE_API_BASE_URL`
-points at it.
+## Pages
+
+- `/` **Home**, `/services` **Services**, `/about` **About**, `/support`
+  **Support** — the informational site, untouched by the 2026-10-20
+  removal.
+- `*` **NotFound** — catches everything else, including `/login`,
+  `/signup`, `/dashboard/*`, which no longer resolve to anything. The
+  header/footer still link to `/login` and `/signup` (not yet removed,
+  since what replaces them is part of the new pattern still to come) — they
+  currently 404 by design, not by bug.
 
 ## Deploying to Vercel
 
-**This app moved into a monorepo at `apps/marketing/`.** If a Vercel
-project is already connected to this repo, its **Root Directory** setting
-needs to change to `apps/marketing` (Project Settings → General → Root
-Directory) or the build will fail looking for `package.json` at the repo
-root. Do this before the next push, or the deploy breaks.
-
-This is a static single-page app (no server, no API routes), so Vercel's
-default Vite preset handles it out of the box: it runs `npm run build` and
-serves `dist/`. `vercel.json` adds the one thing the default preset doesn't
-do for you — a catch-all rewrite to `index.html` so that client-side routes
-resolve correctly on a hard refresh or direct link, instead of 404ing
-(static files under `public/` are still served directly and aren't
-affected by the rewrite). `package.json` also pins a `"node": ">=18.0.0"`
-engine range.
-
-**Set `VITE_API_BASE_URL` in the Vercel project's env vars** to wherever
-`@nouveau/api` is actually deployed — Vite bakes it into the build at
-build time (it's not read at runtime), so it must be set before the build
-runs, not just present on the server afterward. Also update `apps/api`'s
-own `CORS_ORIGIN` (and `COOKIE_SAME_SITE` if the two end up on different
-domains — see `apps/api/README.md`) to point back at this app's real URL.
-
-Two ways to ship it:
-
-- **Vercel CLI, no git required**: `npx vercel` from this directory (first
-  run prompts you to log in and link/create a project), then `npx vercel
-  --prod` to promote it to production.
-- **Git-connected, auto-deploy on push**: push this directory to a GitHub/
-  GitLab/Bitbucket repo and import it at vercel.com/new — every push then
-  deploys automatically, with preview deployments on branches/PRs.
-
-`site.url` (`src/content/site.ts`), `public/sitemap.xml`, and
-`public/robots.txt` point at the real deployed domain
-(`https://nouveau-marketing.vercel.app`) rather than a placeholder. If a
-custom domain ever replaces the `.vercel.app` one, update all three —
-and `apps/api`'s `CORS_ORIGIN` (see `apps/api/README.md`), since it has
-to match exactly or the deployed site can't reach the API at all.
-
-## Project structure
-
-```
-src/
-  components/       shared components (Header, Footer, MobileDrawer, SmoothScroll, ScrollToTop, PageWipe, Seo)
-    motion/          motion primitives (RevealLines, Hairline)
-    ui/              design-system primitives (Button, Container, Accordion, form fields, Icon, Glow)
-  content/           all page copy, as typed objects — see "Editing copy" below
-  lib/
-    motion.ts            centralised motion variants, easing, durations, stagger values
-    api.ts               fetch wrapper for @nouveau/api (credentials: "include" — sessions are cookie-based)
-    AuthContext.tsx      the one source of truth for "am I logged in" / onboarding status / accountType
-    signalsApi.ts        real API calls to @nouveau/api's GET /signals/:base/:quote — see "Dashboard" below
-    demoDashboardData.ts DEMO DATA for the investor dashboard — see "Dashboard" below
-  pages/             Home, Services, About, Support, NotFound — plus the real,
-                     functional Login, Signup, ResetPasswordRequest, ResetPasswordConfirm
-    onboarding/      OnboardingLayout (progress indicator + resumability redirect) + steps/ —
-                     shared: IdentityStep, CredentialsStep, CompleteStep; investor-only:
-                     BrokerAccountStep, LpoaStep; trader-only: BrokerLinkStep, PlanStep
-    dashboard/       DashboardLayout (accountType-aware nav + gating) + a shared index.tsx
-                     that also enforces which pages belong to which track — see "Dashboard" below
-      analytics/     SketchableChart (chart + freehand drawing overlay) used by Analytics
-public/
-  images/            just the logo assets (logo-mark.png, logo-full.png) — see the Logo section below
-.mcp.json            21st.dev MCP server config (url only — no secret; see below)
-.env                 gitignored — holds TWENTYFIRST_API_KEY referenced by .mcp.json, and VITE_API_BASE_URL
-```
-
-Routes: `/`, `/services`, `/about`, `/support`, `/login`, `/signup`,
-`/reset-password`, `/reset-password/confirm`, `/onboarding/*` (identity,
-then broker-account+lpoa for an investor OR broker-link+plan for a trader,
-then credentials shared by both, then complete), `/dashboard/*` (root —
-Overview for an investor, Analytics for a trader — plus shared informational
-Market Chat, analytics, funding, withdraw, transactions, history, billing,
-profile, with account-specific routes guarded by account type). The onboarding and dashboard routes
-render without the site's header/footer (see `App.tsx`'s `SiteLayout`
-split) — they're focused task/app flows, not pages to navigate away from
-mid-step.
-`/pricing` and `/how-it-works` from an earlier iteration of this site were
-removed along with the reserve-mechanic content model they described.
-
-## Dashboard
-
-`pages/dashboard/` is a full section, not one page — `DashboardLayout.tsx`
-provides the persistent nav and gates every page under it the same way
-onboarding is gated (redirect to `/login` if unauthenticated, redirect to
-`/onboarding` if it isn't complete yet). `index.tsx` wires up the nested
-routes as one `React.lazy`-loaded module (`/dashboard/*` in `App.tsx`) —
-`recharts` and its dependencies add real weight that public marketing
-visitors shouldn't pay for on every page load, only once someone actually
-opens the dashboard.
-
-**The dashboard is genuinely two different products sharing one module,**
-picked by the `accountType` chosen at signup (`useAuth()`'s
-`onboarding.accountType`). `DashboardLayout.tsx`'s nav and `index.tsx`'s
-`DashboardHome` branch on it; every track-specific route is wrapped in
-`index.tsx`'s `RequireAccountType`, which redirects the other account type
-back to `/dashboard` rather than rendering a page that doesn't apply to
-them (a typed URL or stale bookmark, not the real security boundary —
-`@nouveau/api` enforces the equivalent boundary server-side, e.g.
-`GET /signals/*` 403s a non-trader independently of anything here).
-
-**Investor dashboard** — the deposit/AI-trading product, now backed by a
-real ledger (2026-09-28), not demo data:
-- **Market Chat** (`/dashboard/market-chat`, also embedded on Overview) —
-  pair selector, recent 1-minute candle chart, and a factual snapshot chat.
-  The selected pair refreshes every two minutes through the API. It is REST
-  polling, not a streaming feed, and the assistant does not provide trade
-  recommendations or alter investor funds.
-- **Overview** (`/dashboard`) — real account summary, a real equity chart
-  (`recharts`, one point per ledger event), and a real recent-activity feed
-  — all from `GET /account/overview` / `GET /account/transactions`
-  (`lib/ledgerApi.ts`), computed live from persisted `LedgerTransaction`
-  rows, never a fabricated figure. Equity only moves when you deposit or
-  withdraw right now — there's no real broker trading yet, so it can't
-  move any other way.
-- **Funding** (`/dashboard/funding`) / **Withdraw** (`/dashboard/withdraw`)
-  — real, enabled forms. A deposit really splits 50/50 into custody/at-risk
-  and persists it (`POST /account/deposit`); a withdrawal really checks
-  against your real custody balance and rejects an over-large amount
-  (`POST /account/withdraw`, 422). **What's still simulated is the payment
-  capture itself** — no real bank transfer or card charge happens until a
-  real payment processor is connected (`apps/api`'s `PaymentAdapter`); the
-  banner on each page says so explicitly and **must stay** until a real
-  processor exists, so a real user is never led to think a real transfer
-  just happened. Don't remove it before that's true.
-- **Transactions** (`/dashboard/transactions`) — real, from
-  `GET /account/transactions`, survives a page reload since it's actually
-  persisted, not client-side state.
-- **Trading history** (`/dashboard/history`) — still demo data
-  (`lib/demoDashboardData.ts`), and deliberately so: without a real broker
-  connection there is no real trade to show, and inventing one would be
-  actively misleading rather than just incomplete. Replace this once real
-  broker trading exists, not before.
-- **The "Example account"/"simulated" banners must stay** on Funding and
-  Withdraw until a real payment processor is connected, and on Trading
-  history until real broker trading exists. Removing one while the data
-  underneath is still fake would misrepresent a real user's own money on a
-  financial platform.
-
-**Trader dashboard** — the self-directed product (2026-09-28):
-- **Analytics** (`/dashboard`, also reachable at `/dashboard/analytics`) —
-  a pair selector, a price chart with a freehand sketch overlay
-  (`analytics/SketchableChart.tsx`), a live-signal panel, and a
-  permanently-disabled trade ticket. The chart, pair switching, signal, and
-  sketching are **real**, backed by `lib/signalsApi.ts`'s calls to
-  `GET /signals/:base/:quote` — see `apps/api/README.md` for what actually
-  computes the bias (deterministic technical indicators, never an LLM).
-  Only the data feed underneath is still a stand-in: a "Running on
-  simulated market data" banner appears whenever the response's
-  `dataSource` says so, and disappears on its own once a real market-data
-  vendor is wired server-side — nothing here needs to change for that. The
-  trade ticket is **permanently** disabled, not a "not live yet"
-  placeholder like Funding/Withdraw above — a trader always executes on
-  their own broker platform, Nouveau never places a trade for this tier,
-  by design.
-- **Billing** (`/dashboard/billing`) — real data (`GET /account/profile`'s
-  `subscription` field), no real payment processor connected yet, so
-  there's no "manage billing" action to offer.
-- Funding/Withdraw/Transactions/Trading history don't exist for a
-  trader — Nouveau never holds a trader's money, so there's nothing to
-  deposit, withdraw, or show a ledger for.
-
-**Shared** — **Profile** (`/dashboard/profile`) fetches
-`GET /account/profile` from `@nouveau/api` (email, `accountType`, KYC
-status, broker account summary, subscription for a trader — never a
-credential) rather than using demo data, for either track. If you add a
-section that could plausibly be backed by real data already sitting in the
-database, check `apps/api`'s models before assuming it has to be a demo
-page too.
-
-## Changing the palette
-
-All brand colours live in **`tailwind.config.ts`** under `theme.extend.colors`
-(`paper`, `paper-2`, `ink`, `slate`, `slate-light`, `navy`, `navy-deep`,
-`navy-line`, `gold`, `gold-light`, `gold-deep`) and are mirrored as CSS
-custom properties in **`src/index.css`** (`:root`). If you change a colour,
-update it in both places.
-
-Gold text on the light `paper`/`paper-2` backgrounds must use `gold-deep`,
-not `gold` — `gold` is reserved for the navy/navy-deep surfaces, where it
-has enough contrast to read. `slate-light` exists specifically for
-secondary/muted text on dark surfaces (the footer) — plain `slate` fails
-WCAG AA (3.4:1) against `navy-deep`; `slate-light` clears it (6.1:1). If you
-introduce a new gold-on-light or slate-on-dark text combination anywhere,
-verify contrast before shipping it — it's easy to reintroduce this exact
-failure mode by copying a pattern from a light-background section into a
-dark one, or vice versa.
-
-## Changing the fonts
-
-Fonts are loaded from Google Fonts via the `<link>` tag in **`index.html`**
-(`Space Grotesk` for display/headings, `Inter` for body/UI text,
-`JetBrains Mono` for money figures and statistics). The CSS variables that
-map them to Tailwind's `font-display` / `font-text` / `font-mono` utilities
-are set in **`src/index.css`**. To swap a typeface: change the Google Fonts
-URL in `index.html` and the corresponding `--font-*` variable in
-`index.css`.
-
-## Editing copy
-
-Every word on the site lives in **`src/content/*.ts`** as typed objects —
-`home.ts`, `services.ts`, `about.ts`, `support.ts`, `auth.ts`, and shared
-nav/footer/legal text in `site.ts`. Edit these files directly; the page
-components in `src/pages/` just import and render them, so copy changes
-never require touching JSX.
-
-**The flags/currencies row mentioned in an earlier brief was intentionally
-left out** — it implied a specific list of supported countries and
-currencies, which is a factual claim that shouldn't be invented. Add it
-back (e.g. a new section in `home.ts` plus a small marquee or grid
-component) once you have the real list.
-
-## Logo
-
-`src/components/ui/Logo.tsx` exports three variants, all built from the
-client-supplied logo file (`public/images/logo-mark.png` — the gold icon,
-cropped tight; `public/images/logo-full.png` — icon + cream "NOUVEAU"
-wordmark, cropped tight; `public/favicon.png` — the icon, squared and
-downsized):
-
-- `LogoMark` — icon only, transparent, works on any surface.
-- `LogoLockup` — icon image + **live** "Nouveau" text (`tone: "light" |
-  "dark"` controls the text color). Used in the header, which toggles
-  between a light and dark surface — the source file's wordmark is baked
-  in as cream/white pixels and is only legible on a dark surface, so this
-  variant re-renders the wordmark as real, color-adaptive text instead.
-- `LogoFull` — the raw raster lockup, icon and wordmark together. Only use
-  this where the background is guaranteed dark (`navy`/`navy-deep`) —
-  currently the footer, the mobile drawer, and the Login/Signup dark side
-  panels. If you place it near the top of a page, keep it clear of the
-  fixed header's ~84px height (`top-28` or more) — the header is
-  `position: fixed` with `z-50` and will silently paint over anything
-  positioned underneath it.
-
-## Motion system
-
-`src/lib/motion.ts` centralises the easing curve
-(`cubic-bezier(0.22, 1, 0.36, 1)`), durations, and stagger values, plus a
-handful of named variants (`clipRiseLine` for the hero, `hairlineDraw`,
-`settleFromLeft`, `softAppear`). `prefers-reduced-motion` is respected
-throughout — reduced-motion visitors get final states instantly rather
-than a half-animated version. `src/components/ui/Glow.tsx` is the soft
-blurred-radial background shape used behind hero/CTA sections for visual
-energy — navy/gold only, low opacity, never a rainbow gradient.
-
-**The authenticated app (onboarding, dashboard) reuses this same system**
-rather than a separate one — those pages originally shipped with no
-motion at all, which read as noticeably flatter than the marketing site
-once both existed side by side. Shared pieces, all built on
-`lib/motion.ts`'s `riseIn` variant (a general-purpose entrance, distinct
-from the hero-specific effects above, meant to be reused often):
-- **`components/motion/RiseIn.tsx`** — wraps content in a small stagger-
-  able rise+fade; falls back to a plain element under reduced motion.
-  Takes `as="li"`/`as="tr"` when wrapping something that must be a direct
-  child of a `ul`/`ol`/`table` — wrapping those in a plain `div` (the
-  default) is invalid HTML there.
-- **`components/motion/RouteFade.tsx`** — a quick (0.18s, overlapping, not
-  `mode="wait"`) local cross-fade for nested-route content (an onboarding
-  step, a dashboard tab), layered on top of `PageWipe`'s full-screen
-  transition. Deliberately fast and overlapping rather than sequential —
-  an earlier version used `mode="wait"` with `durations.fast` (0.4s),
-  which meant every dashboard tab click showed a blank screen for the
-  better part of a second while the old tab fully faded before the new
-  one started. Onboarding can tolerate slower pacing (there's already an
-  async submit to wait through); a dashboard's tab nav needs to feel
-  instant.
-- **`components/ui/ProgressBar.tsx`** — shared by `OnboardingLayout` and
-  the dashboard's `Overview`; animates its fill from 0 on mount instead of
-  snapping straight to its value.
-- The dashboard nav's active-tab highlight uses framer-motion's
-  `layoutId` for a sliding indicator between tabs (`DashboardLayout.tsx`)
-  — if you touch that markup, keep the highlight `<motion.span>` before
-  the label `<span>` in JSX and don't give either an explicit negative
-  `z-index`; normal DOM stacking order already puts the label on top, and
-  a negative z-index index can escape the nav item's own stacking context
-  and render behind the sidebar's background instead (a real bug caught
-  here, not a hypothetical one).
-
-## Images
-
-There's no photography on the site at all now — the last remaining use (two
-About-page team portraits) was removed along with the "people accountable"
-section. The visual system is entirely icon- (`lucide-react`, via
-`src/components/ui/Icon.tsx`) and glow-shape-driven
-(`src/components/ui/Glow.tsx`). If photography comes back later, re-add a
-`Figure`-style component with the same consistent-grade treatment described
-in earlier project history, and a `CREDITS.md` documenting each source
-(Unsplash/Pexels only, per the original brief).
-
-## 21st.dev MCP server
-
-`.mcp.json` registers the 21st.dev "Magic" MCP server (UI component
-generation via `/ui` prompts) as an HTTP server, referencing
-`${TWENTYFIRST_API_KEY}` rather than embedding the key directly — the key
-itself lives in the gitignored `.env` file and was also set as a
-user-level Windows environment variable. **MCP servers connect at session
-startup**, so a running Claude Code session won't pick this up until it's
-restarted. If you rotate the key, update both `.env` and the Windows
-environment variable (`setx TWENTYFIRST_API_KEY "..."`, or via System
-Properties → Environment Variables), since `setx` only affects future
-sessions, not the one it's run from.
+See the root README for the monorepo layout. This app deploys as a static
+Vite build; no server runtime is required for it.
