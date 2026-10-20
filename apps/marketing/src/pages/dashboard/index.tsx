@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
 import Overview from "./Overview";
 import Analytics from "./Analytics";
+import CopyTrading from "./CopyTrading";
 import Funding from "./Funding";
 import Withdraw from "./Withdraw";
 import Transactions from "./Transactions";
@@ -47,6 +48,14 @@ export default function DashboardModule() {
       <Route element={<DashboardLayout />}>
         <Route index element={<DashboardHome />} />
         <Route path="market-chat" element={<MarketChat />} />
+        <Route
+          path="copy"
+          element={
+            <RequireAccountType type="investor">
+              <CopyTrading />
+            </RequireAccountType>
+          }
+        />
         <Route
           path="analytics"
           element={

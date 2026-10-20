@@ -53,6 +53,7 @@ const registry = {
   success: CheckCircle2,
   broker: Link2,
   marketChat: MessageCircle,
+  copy: Link2,
 } as const;
 
 export type IconName = keyof typeof registry;

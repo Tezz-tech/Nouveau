@@ -8,4 +8,9 @@ export { Subscription, type SubscriptionDocument } from "./models/Subscription";
 export { SignalLog, type SignalLogDocument } from "./models/SignalLog";
 export { LedgerTransaction, type LedgerTransactionDocument } from "./models/LedgerTransaction";
 export { DeskMessage, type DeskMessageDocument } from "./models/DeskMessage";
+export { MasterStrategy, type MasterStrategyDocument } from "./models/MasterStrategy";
+export { CopySubscription, type CopySubscriptionDocument } from "./models/CopySubscription";
+export { CopyDecision, type CopyDecisionDocument } from "./models/CopyDecision";
+export { CopyTrade, type CopyTradeDocument } from "./models/CopyTrade";
+
 

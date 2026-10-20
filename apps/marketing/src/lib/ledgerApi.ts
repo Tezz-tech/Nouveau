@@ -47,3 +47,63 @@ export function getTransactions(): Promise<TransactionSummary[]> {
 export function formatCents(centsStr: string): string {
   return (Number(centsStr) / 100).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
+
+/** Copy-trading: link to the master, demo AI trades, audit the log. */
+export interface CopyStatus {
+  provider: string;
+  master: { login: string; strategyId: string | null };
+  subscription: { mode: string; multiplier: number; status: string; strategyId: string | null } | null;
+}
+
+export interface CopyTradeRow {
+  masterTicket: string;
+  symbol: string;
+  side: string;
+  masterLot: number;
+  followerLot: number;
+  status: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface CopyDecisionRow {
+  symbol: string;
+  bias: string;
+  verdict: string;
+  approvedLot: number | null;
+  logReason: string;
+  createdAt: string;
+}
+
+export function getCopyStatus(): Promise<CopyStatus> {
+  return api.get<CopyStatus>("/copy/status");
+}
+
+export function subscribeCopy(input: { mode?: string; multiplier?: number }): Promise<unknown> {
+  return api.post("/copy/subscribe", input);
+}
+
+export function unsubscribeCopy(): Promise<unknown> {
+  return api.del("/copy/subscribe");
+}
+
+export function getCopyTrades(): Promise<CopyTradeRow[]> {
+  return api.get<CopyTradeRow[]>("/copy/trades");
+}
+
+export function getCopyDecisions(): Promise<CopyDecisionRow[]> {
+  return api.get<CopyDecisionRow[]>("/copy/decisions");
+}
+
+export function demoCopyTrade(input: {
+  symbol: string;
+  bias: string;
+  confidence: number;
+  reason: string;
+  requestedLot: number;
+  stopLossPips: number | null;
+  takeProfitPips?: number | null;
+}): Promise<{ verdict: string; copies: number; skipped: number; logReason: string }> {
+  return api.post("/copy/demo", input);
+}
+

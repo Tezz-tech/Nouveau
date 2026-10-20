@@ -13,12 +13,14 @@ import { createSignalsRouter } from "./routes/signals";
 import { createMarketChatRouter } from "./routes/marketChat";
 import { createDeskRouter } from "./routes/desk";
 import { createMarketRouter, startMarketPoller } from "./routes/market";
+import { createCopyRouter } from "./routes/copy";
 import type { EmailAdapter } from "./adapters/email/EmailAdapter";
 import type { KycAdapter } from "./adapters/kyc/KycAdapter";
 import type { BrokerLinkAdapter } from "./adapters/brokerLink/BrokerLinkAdapter";
 import type { PaymentAdapter } from "./adapters/payment/PaymentAdapter";
 import type { MarketDataAdapter } from "./adapters/marketData/MarketDataAdapter";
 import type { NarrationAdapter } from "./adapters/narration/NarrationAdapter";
+import type { CopyBrokerAdapter } from "./adapters/copyBroker/CopyBrokerAdapter";
 
 export interface AppDependencies {
   emailAdapter: EmailAdapter;
@@ -27,6 +29,7 @@ export interface AppDependencies {
   paymentAdapter: PaymentAdapter;
   marketDataAdapter: MarketDataAdapter;
   narrationAdapter: NarrationAdapter;
+  copyBrokerAdapter: CopyBrokerAdapter;
   appBaseUrl: string;
   /** Skips attaching the Mongo session store — tests provide their own
    *  in-memory MongoDB and don't want a second real connection. */
@@ -71,6 +74,7 @@ export function createApp(deps: AppDependencies): Express {
   app.use("/market-chat", createMarketChatRouter(deps.marketDataAdapter));
   app.use("/market", createMarketRouter(deps.marketDataAdapter));
   app.use("/desk", createDeskRouter());
+  app.use("/copy", createCopyRouter(deps.copyBrokerAdapter, deps.marketDataAdapter));
 
   // One process-wide 60s poller behind the quotes endpoints + SSE fan-out.
   // On Vercel's serverless runtime this simply runs per warm instance
@@ -85,4 +89,5 @@ export function createApp(deps: AppDependencies): Express {
 
   return app;
 }
+
 

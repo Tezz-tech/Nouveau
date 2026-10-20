@@ -6,11 +6,11 @@ async function main() {
   const env = getEnv();
 
   if (env.TRADING_MODE === "live") {
-    // Nothing in Phase 2 places trades, but this is the earliest possible
-    // point to refuse to boot at all with a misconfigured environment —
-    // invariant #7 says live trading must never be an accident.
+    // The copy-trading engine exists, but live trading is still blocked until
+    // real MetaApi credentials are wired (COPY_BROKER_PROVIDER=metaapi) and
+    // reviewed — invariant #7 says live trading must never be an accident.
     throw new Error(
-      "TRADING_MODE=live is not permitted yet — no broker adapter, no strategy engine, no kill switch exist. This is expected to fail until Phase 5+."
+      "TRADING_MODE=live is not permitted yet — the copy engine runs in paper/simulator mode only until real MetaApi credentials are configured and reviewed."
     );
   }
 

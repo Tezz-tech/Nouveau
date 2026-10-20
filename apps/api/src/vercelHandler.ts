@@ -36,7 +36,7 @@ const env = getEnv();
 
 if (env.TRADING_MODE === "live") {
   throw new Error(
-    "TRADING_MODE=live is not permitted yet — no broker adapter, no strategy engine, no kill switch exist. This is expected to fail until Phase 5+."
+    "TRADING_MODE=live is not permitted yet — the copy engine runs in paper/simulator mode only until real MetaApi credentials are configured and reviewed."
   );
 }
 

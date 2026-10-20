@@ -278,7 +278,7 @@ the client's project already lives.
    - Twelve Data does not connect to traders' MT4/5 accounts. Broker-link
      verification remains simulated until a suitable broker or integration
      is selected; simulator approval is not verification of a real account.
-   - Investor-side MetaApi/CopyFactory copy-trading is not implemented.
+   - Investor-side MetaApi/CopyFactory copy-trading runs behind `COPY_BROKER_PROVIDER` (default `simulator`; set `metaapi` + token for real REST).
    - **A payment processor** for `PAYMENT_PROVIDER=real` —
      `@nouveau/core`'s `ledger.ts` already assumes Paystack in its own
      comments, so confirm that's still the intended processor before

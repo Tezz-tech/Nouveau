@@ -7,6 +7,7 @@ import { getBrokerLinkAdapter } from "./adapters/brokerLink/provider";
 import { getPaymentAdapter } from "./adapters/payment/provider";
 import { getMarketDataAdapter } from "./adapters/marketData/provider";
 import { getNarrationAdapter } from "./adapters/narration/provider";
+import { getCopyBrokerAdapter } from "./adapters/copyBroker/provider";
 
 /**
  * Shared between server.ts (a traditional long-running host) and
@@ -24,6 +25,7 @@ export function buildApiApp(): Express {
     paymentAdapter: getPaymentAdapter(),
     marketDataAdapter: getMarketDataAdapter(),
     narrationAdapter: getNarrationAdapter(),
+    copyBrokerAdapter: getCopyBrokerAdapter(),
     appBaseUrl: env.CORS_ORIGIN,
   });
 }

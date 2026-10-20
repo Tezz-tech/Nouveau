@@ -47,6 +47,14 @@ const envSchema = z
     LLM_NARRATION_PROVIDER: z.enum(["template", "anthropic"]).default("template"),
     TWELVE_DATA_API_KEY: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
+    /** Copy-trading broker. `simulator` runs the whole master->follower loop
+     *  in-process with zero credentials. `metaapi` talks to real CopyFactory
+     *  + MetaApi REST — needs METAAPI_API_TOKEN + METAAPI_MASTER_ACCOUNT_ID. */
+    COPY_BROKER_PROVIDER: z.enum(["simulator", "metaapi"]).default("simulator"),
+    METAAPI_API_TOKEN: z.string().optional(),
+    METAAPI_MASTER_ACCOUNT_ID: z.string().optional(),
+    METAAPI_REGION: z.string().default("new-york"),
+    COPY_BROKER_BASE_URL: z.string().optional(),
   })
   .refine((env) => env.EMAIL_PROVIDER !== "resend" || Boolean(env.RESEND_API_KEY && env.EMAIL_FROM), {
     message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
@@ -68,6 +76,13 @@ const envSchema = z
       message:
         "TRADING_MODE=live cannot run on simulated market data, broker linking, or payments — set MARKET_DATA_PROVIDER/BROKER_LINK_PROVIDER/PAYMENT_PROVIDER to a real provider first.",
       path: ["TRADING_MODE"],
+    }
+  )
+  .refine(
+    (env) => env.COPY_BROKER_PROVIDER !== "metaapi" || Boolean(env.METAAPI_API_TOKEN?.trim() && env.METAAPI_MASTER_ACCOUNT_ID?.trim()),
+    {
+      message: "METAAPI_API_TOKEN and METAAPI_MASTER_ACCOUNT_ID are required when COPY_BROKER_PROVIDER=metaapi",
+      path: ["COPY_BROKER_PROVIDER"],
     }
   );
 

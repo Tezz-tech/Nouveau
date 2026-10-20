@@ -8,6 +8,7 @@ import { SimulatorBrokerLinkAdapter } from "../adapters/brokerLink/SimulatorBrok
 import { SimulatorPaymentAdapter } from "../adapters/payment/SimulatorPaymentAdapter";
 import { SimulatorMarketDataAdapter } from "../adapters/marketData/SimulatorMarketDataAdapter";
 import { TemplatedNarrationAdapter } from "../adapters/narration/TemplatedNarrationAdapter";
+import { SimulatorCopyBrokerAdapter } from "../adapters/copyBroker/SimulatorCopyBrokerAdapter";
 import type { EmailMessage, EmailAdapter } from "../adapters/email/EmailAdapter";
 
 export class RecordingEmailAdapter implements EmailAdapter {
@@ -35,6 +36,7 @@ export async function buildTestApp() {
     paymentAdapter: new SimulatorPaymentAdapter(),
     marketDataAdapter: new SimulatorMarketDataAdapter(),
     narrationAdapter: new TemplatedNarrationAdapter(),
+    copyBrokerAdapter: new SimulatorCopyBrokerAdapter(),
     appBaseUrl: "http://localhost:5173",
     // in-memory session store for tests — MongoStore would try to open a
     // second real connection using connect-mongo's own client

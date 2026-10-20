@@ -16,6 +16,7 @@ type NavItem = { to: string; label: string; icon: IconName; end?: boolean };
  *  or places a trade. Trader dashboard is self-directed and has analytics. */
 const INVESTOR_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Overview", icon: "overview", end: true },
+  { to: "/dashboard/copy", label: "Copy Trading", icon: "copy" },
   { to: "/dashboard/market-chat", label: "Market Chat", icon: "marketChat" },
   { to: "/dashboard/funding", label: "Funding", icon: "funding" },
   { to: "/dashboard/withdraw", label: "Withdraw", icon: "withdraw" },
