@@ -20,8 +20,15 @@ export class FakeCopyTradingAdapter implements CopyTradingAdapter {
    *  care about the deploying/connecting window. Set per-account to
    *  exercise the polling/failure paths explicitly. */
   public connectionStageOverride: Record<string, ConnectionStatusResult["stage"]> = {};
+  /** Makes the next `linkSubscriberAccount` call reject, then resets —
+   *  exercises the "a failed link attempt must still be retryable" path. */
+  public failNextLink = false;
 
   async linkSubscriberAccount(_input: LinkSubscriberAccountInput): Promise<LinkSubscriberAccountResult> {
+    if (this.failNextLink) {
+      this.failNextLink = false;
+      throw new Error("fake link failure");
+    }
     this.counter += 1;
     return { metaApiAccountId: `fake-meta-account-${this.counter}` };
   }

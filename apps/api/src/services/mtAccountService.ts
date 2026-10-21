@@ -35,7 +35,10 @@ export async function linkMtAccount(
     throw new HttpError(409, "No pending bot subscription to link an account to — choose a bot and pay first.");
   }
 
-  const existing = await MtAccount.findOne({ userId: user._id, status: { $ne: "closed" } });
+  // Only a genuinely in-progress or successful link blocks a new attempt —
+  // an "error" account (a prior attempt that failed, e.g. a wrong password)
+  // must not permanently lock a user out of retrying.
+  const existing = await MtAccount.findOne({ userId: user._id, status: { $in: ["pending", "linked"] } });
   if (existing) {
     throw new HttpError(409, "You already have a linked MT5 account.");
   }

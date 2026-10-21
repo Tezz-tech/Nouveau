@@ -135,6 +135,50 @@ describe("full flow: bots -> checkout -> webhook -> link -> connect -> active", 
     expect(res.status).toBe(409);
   });
 
+  it("lets a user retry after a failed link attempt instead of locking them out", async () => {
+    const { plan } = await seedBot("Scalper", "5000000");
+    const agent = request.agent(app);
+    await agent.post("/auth/signup").send({ email: "retry@example.com", password: "correcthorsebattery", fullName: "Retry User" });
+    const session = await agent.get("/auth/session");
+    const userId = session.body.userId as string;
+
+    await request(app)
+      .post("/webhooks/paystack")
+      .set("Content-Type", "application/json")
+      .set("x-paystack-signature", "valid")
+      .send(paystackWebhookBody("charge.success", { metadata: { userId, botPlanId: plan._id.toString() } }));
+
+    copyTradingAdapter.failNextLink = true;
+    const failedLink = await agent.post("/mt-account/link").send({
+      broker: "TestBroker",
+      login: "12345",
+      serverName: "TestBroker-Live",
+      tradingPassword: "RealTradingPass123!",
+      consent: true,
+    });
+    expect(failedLink.status).toBe(422);
+
+    const failedAccount = await MtAccount.findOne({ userId });
+    expect(failedAccount?.status).toBe("error");
+
+    // Retry with the same credentials, now that the fake adapter isn't
+    // forced to fail — must NOT be blocked by the errored account above.
+    const retryLink = await agent.post("/mt-account/link").send({
+      broker: "TestBroker",
+      login: "12345",
+      serverName: "TestBroker-Live",
+      tradingPassword: "RealTradingPass123!",
+      consent: true,
+    });
+    expect(retryLink.status).toBe(202);
+
+    const statusRes = await agent.get("/mt-account/status");
+    expect(statusRes.body.connectionStage).toBe("connected");
+
+    const sub = await BotSubscription.findOne({ userId });
+    expect(sub?.status).toBe("active");
+  });
+
   it("rejects a webhook with an invalid signature", async () => {
     const res = await request(app)
       .post("/webhooks/paystack")
