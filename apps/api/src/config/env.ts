@@ -10,12 +10,22 @@ import "dotenv/config";
  * pattern (`*_PROVIDER=simulator|real`) for MetaApi/CopyFactory or
  * Paystack — this build has no simulator for either, by explicit client
  * choice (there's no meaningful "fake" version of copy trading or of
- * taking real payment for it). `META_API_TOKEN`/`PAYSTACK_SECRET_KEY` are
- * therefore required unconditionally, not conditionally via `.refine()`.
- * Automated tests inject fake adapter implementations directly through
- * `createApp(deps)`'s dependency injection (see `test/testApp.ts`) instead
- * of selecting a provider — see `test/setupEnv.ts` for the dummy-shaped
- * values that satisfy this schema in CI.
+ * taking real payment for it). Automated tests inject fake adapter
+ * implementations directly through `createApp(deps)`'s dependency
+ * injection (see `test/testApp.ts`) instead of selecting a provider.
+ *
+ * `META_API_TOKEN`/`PAYSTACK_SECRET_KEY` are deliberately `.optional()`
+ * here, not required — this whole object is validated as ONE unit, so an
+ * earlier version that required them unconditionally meant a missing
+ * token crashed the entire server at boot, taking down login/signup/every
+ * other unrelated route along with it (a real incident, not a hypothetical
+ * one). "No simulator" was only ever meant to apply to the copy-trading
+ * mechanics themselves — `adapters/copyTrading/provider.ts` and
+ * `adapters/payment/provider.ts` are what actually enforce that now: each
+ * returns a `NotConfigured*Adapter` when its token is missing, whose
+ * methods throw a clear 503 only when a request genuinely needs the real
+ * vendor call (checkout, account linking) — never a silent fake success,
+ * and never something that blocks auth or any other unrelated route.
  */
 const envSchema = z
   .object({
@@ -47,8 +57,8 @@ const envSchema = z
      *  that would be a real risk to reimplement by hand, and the package is
      *  already a zero-extra-cost transitive dependency of metaapi.cloud-sdk
      *  regardless. */
-    META_API_TOKEN: z.string().min(1, "META_API_TOKEN is required — this build has no simulator for MetaApi/CopyFactory"),
-    PAYSTACK_SECRET_KEY: z.string().min(1, "PAYSTACK_SECRET_KEY is required — this build has no simulator for payments"),
+    META_API_TOKEN: z.string().optional(),
+    PAYSTACK_SECRET_KEY: z.string().optional(),
     PAYSTACK_PUBLIC_KEY: z.string().optional(),
   })
   .refine((env) => env.EMAIL_PROVIDER !== "resend" || Boolean(env.RESEND_API_KEY && env.EMAIL_FROM), {

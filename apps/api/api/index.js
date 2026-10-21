@@ -221,8 +221,8 @@ var envSchema = z.object({
    *  that would be a real risk to reimplement by hand, and the package is
    *  already a zero-extra-cost transitive dependency of metaapi.cloud-sdk
    *  regardless. */
-  META_API_TOKEN: z.string().min(1, "META_API_TOKEN is required \u2014 this build has no simulator for MetaApi/CopyFactory"),
-  PAYSTACK_SECRET_KEY: z.string().min(1, "PAYSTACK_SECRET_KEY is required \u2014 this build has no simulator for payments"),
+  META_API_TOKEN: z.string().optional(),
+  PAYSTACK_SECRET_KEY: z.string().optional(),
   PAYSTACK_PUBLIC_KEY: z.string().optional()
 }).refine((env2) => env2.EMAIL_PROVIDER !== "resend" || Boolean(env2.RESEND_API_KEY && env2.EMAIL_FROM), {
   message: "RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend",
@@ -711,7 +711,7 @@ async function linkMtAccount(user, input, copyTradingAdapter, kmsProvider) {
   if (!subscription) {
     throw new HttpError(409, "No pending bot subscription to link an account to \u2014 choose a bot and pay first.");
   }
-  const existing = await MtAccount.findOne({ userId: user._id, status: { $ne: "closed" } });
+  const existing = await MtAccount.findOne({ userId: user._id, status: { $in: ["pending", "linked"] } });
   if (existing) {
     throw new HttpError(409, "You already have a linked MT5 account.");
   }
@@ -1086,11 +1086,30 @@ var PaystackPaymentAdapter = class {
   }
 };
 
+// src/adapters/payment/NotConfiguredPaymentAdapter.ts
+var MESSAGE = "Paystack isn't configured yet \u2014 set PAYSTACK_SECRET_KEY in apps/api/.env to enable checkout.";
+var NotConfiguredPaymentAdapter = class {
+  provider = "not-configured";
+  async createPlan(_input) {
+    throw new HttpError(503, MESSAGE);
+  }
+  async initializeTransaction(_input) {
+    throw new HttpError(503, MESSAGE);
+  }
+  verifyWebhookSignature(_rawBody, _signatureHeader) {
+    throw new HttpError(503, MESSAGE);
+  }
+  parseWebhookEvent(_rawBody) {
+    throw new HttpError(503, MESSAGE);
+  }
+};
+
 // src/adapters/payment/provider.ts
 var cached3;
 function getPaymentAdapter() {
   if (!cached3) {
-    cached3 = new PaystackPaymentAdapter(getEnv().PAYSTACK_SECRET_KEY);
+    const key = getEnv().PAYSTACK_SECRET_KEY;
+    cached3 = key ? new PaystackPaymentAdapter(key) : new NotConfiguredPaymentAdapter();
   }
   return cached3;
 }
@@ -1201,11 +1220,30 @@ var MetaApiCopyTradingAdapter = class {
   }
 };
 
+// src/adapters/copyTrading/NotConfiguredCopyTradingAdapter.ts
+var MESSAGE2 = "MetaApi isn't configured yet \u2014 set META_API_TOKEN in apps/api/.env to enable bot linking.";
+var NotConfiguredCopyTradingAdapter = class {
+  provider = "not-configured";
+  async linkSubscriberAccount(_input) {
+    throw new HttpError(503, MESSAGE2);
+  }
+  async pollConnectionStatus(_metaApiAccountId) {
+    throw new HttpError(503, MESSAGE2);
+  }
+  async subscribeToStrategy(_metaApiAccountId, _copyFactoryStrategyId, _multiplier) {
+    throw new HttpError(503, MESSAGE2);
+  }
+  async ensureProviderStrategy(_input) {
+    throw new HttpError(503, MESSAGE2);
+  }
+};
+
 // src/adapters/copyTrading/provider.ts
 var cached4;
 function getCopyTradingAdapter() {
   if (!cached4) {
-    cached4 = new MetaApiCopyTradingAdapter(getEnv().META_API_TOKEN);
+    const token = getEnv().META_API_TOKEN;
+    cached4 = token ? new MetaApiCopyTradingAdapter(token) : new NotConfiguredCopyTradingAdapter();
   }
   return cached4;
 }

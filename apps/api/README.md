@@ -15,16 +15,19 @@ has nothing to do with this one.
 - **Node.js + Express**, **MongoDB** (via `@nouveau/db`).
 - **`metaapi.cloud-sdk`** for MT5 account provisioning, **`metaapi.cloud-copyfactory-sdk`** for strategy/subscriber management — both official vendor SDKs, imported via their `/node` subpath (see "MetaApi/CopyFactory packaging gotchas" below for two real bugs this surfaced).
 - **Paystack**, talked to directly over `fetch` (no SDK — see `adapters/payment/PaystackPaymentAdapter.ts`).
-- **No simulator for either integration.** Unlike every other vendor integration this project has ever built, there is no `*_PROVIDER=simulator` toggle for MetaApi/CopyFactory or Paystack — a deliberate client choice, since there's no meaningful "fake" version of copy trading or of charging real money for it. `config/env.ts` requires `META_API_TOKEN`/`PAYSTACK_SECRET_KEY` unconditionally; automated tests inject `test/fakes/FakeCopyTradingAdapter`/`FakePaymentAdapter` directly via dependency injection instead.
+- **No simulator for either integration.** Unlike every other vendor integration this project has ever built, there is no `*_PROVIDER=simulator` toggle for MetaApi/CopyFactory or Paystack — a deliberate client choice, since there's no meaningful "fake" version of copy trading or of charging real money for it. That choice is scoped to the copy-trading mechanics themselves, not the whole server: `META_API_TOKEN`/`PAYSTACK_SECRET_KEY` are `.optional()` in `config/env.ts` on purpose (an earlier version required them unconditionally, which meant a missing token crashed the *entire* server at boot — login, signup, everything, not just checkout/linking — a real incident, not a hypothetical). `adapters/copyTrading/provider.ts` and `adapters/payment/provider.ts` return a `NotConfigured*Adapter` when the matching token is absent; its methods throw a clear 503 only when a request genuinely needs the real vendor call. Automated tests inject `test/fakes/FakeCopyTradingAdapter`/`FakePaymentAdapter` directly via dependency injection instead of either of these.
 
 ## Environment
 
 Copy `.env.example` to `.env`. `SESSION_SECRET`/`KMS_LOCAL_MASTER_KEY` need
-real random values. **`META_API_TOKEN` and `PAYSTACK_SECRET_KEY` are
-required — this service will not boot without them**, and local/manual
-testing genuinely needs real sandbox credentials (a MetaApi account +
-token, Paystack test-mode keys) to do anything beyond running the
-automated test suite. Never paste either into chat — only into `.env`.
+real random values — the server won't boot without those. `META_API_TOKEN`
+and `PAYSTACK_SECRET_KEY` are optional for booting (auth, the bot list, and
+browsing the dashboard all work without them) but required for anything
+that actually touches MetaApi or Paystack — checkout and MT5 linking will
+respond with a clear 503 until real values are set. Local/manual testing
+of those two flows specifically needs real sandbox credentials (a MetaApi
+account + token, Paystack test-mode keys). Never paste either into chat —
+only into `.env`.
 
 ## Running
 

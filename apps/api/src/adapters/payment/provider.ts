@@ -1,14 +1,18 @@
 import { getEnv } from "../../config/env";
 import type { PaymentAdapter } from "./PaymentAdapter";
 import { PaystackPaymentAdapter } from "./PaystackPaymentAdapter";
+import { NotConfiguredPaymentAdapter } from "./NotConfiguredPaymentAdapter";
 
 let cached: PaymentAdapter | undefined;
 
-/** env.ts already refuses to boot without PAYSTACK_SECRET_KEY, so this is
- *  always the real adapter — no provider toggle, no simulator. */
+/** Real adapter when PAYSTACK_SECRET_KEY is set; otherwise a clear, scoped
+ *  "not configured" error on first actual use — never a simulator, never
+ *  something that blocks server startup (see config/env.ts's note on why
+ *  that was a real incident). */
 export function getPaymentAdapter(): PaymentAdapter {
   if (!cached) {
-    cached = new PaystackPaymentAdapter(getEnv().PAYSTACK_SECRET_KEY);
+    const key = getEnv().PAYSTACK_SECRET_KEY;
+    cached = key ? new PaystackPaymentAdapter(key) : new NotConfiguredPaymentAdapter();
   }
   return cached;
 }
