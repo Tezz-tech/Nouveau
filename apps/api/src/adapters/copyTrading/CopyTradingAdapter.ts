@@ -41,6 +41,25 @@ export interface EnsureProviderStrategyResult {
   appliedConfig: unknown;
 }
 
+export interface CreateProviderAccountInput {
+  broker: string;
+  login: string;
+  serverName: string;
+  tradingPassword: string;
+}
+
+export interface FinalizeProviderStrategyInput {
+  metaApiAccountId: string;
+  name: string;
+  description: string;
+  maxTradeRiskPct?: number;
+}
+
+export interface FinalizeProviderStrategyResult {
+  copyFactoryStrategyId: string;
+  appliedConfig: unknown;
+}
+
 /**
  * Wraps both MetaApi account provisioning (the official `metaapi.cloud-sdk`)
  * and CopyFactory strategy/subscriber management (the official
@@ -61,9 +80,22 @@ export interface CopyTradingAdapter {
   pollConnectionStatus(metaApiAccountId: string): Promise<ConnectionStatusResult>;
   subscribeToStrategy(metaApiAccountId: string, copyFactoryStrategyId: string, multiplier: number): Promise<void>;
   /** Idempotent-ish (diffs against the caller-supplied previous config
-   *  rather than blindly re-pushing) — used only by the master-strategy
-   *  seed script, not by any user-facing request path. May block on
-   *  `waitConnected`, unlike `linkSubscriberAccount`, since it only ever
-   *  runs offline. */
+   *  rather than blindly re-pushing) — used only by `scripts/
+   *  seedMasterStrategies.ts`, run from a terminal. May block on
+   *  `waitConnected`, unlike `linkSubscriberAccount`/`createProviderAccount`,
+   *  since it only ever runs offline where blocking is fine. */
   ensureProviderStrategy(input: EnsureProviderStrategyInput): Promise<EnsureProviderStrategyResult>;
+  /** The admin-UI equivalent of `ensureProviderStrategy`'s "provision
+   *  fresh" path, split in two so neither half blocks an HTTP request on
+   *  `waitConnected`: this creates and deploys a PROVIDER-role account and
+   *  returns immediately (same non-blocking contract as
+   *  `linkSubscriberAccount`) — callers poll `pollConnectionStatus`, then
+   *  call `finalizeProviderStrategy` once connected. */
+  createProviderAccount(input: CreateProviderAccountInput): Promise<LinkSubscriberAccountResult>;
+  /** Generates and applies the CopyFactory strategy for an already-connected
+   *  provider account — the second half of the admin UI's fresh-provision
+   *  flow, and also what an "already provisioned in MetaApi" admin
+   *  submission calls directly (no account creation needed, so no waiting
+   *  either). */
+  finalizeProviderStrategy(input: FinalizeProviderStrategyInput): Promise<FinalizeProviderStrategyResult>;
 }

@@ -13,6 +13,17 @@ describe("User model", () => {
     expect(user.paystackCustomerCode).toBeUndefined();
   });
 
+  it("defaults role to user — admin has no public, self-serve path", async () => {
+    const user = await User.create({ email: "plain@example.com", passwordHash: "hashed", fullName: "Plain User" });
+    expect(user.role).toBe("user");
+  });
+
+  it("rejects an invalid role", async () => {
+    await expect(
+      User.create({ email: "bad-role@example.com", passwordHash: "hashed", fullName: "Bad Role", role: "superadmin" })
+    ).rejects.toThrow();
+  });
+
   it("enforces a unique email", async () => {
     await User.create({ email: "dup@example.com", passwordHash: "hashed", fullName: "Dup User" });
     await expect(User.create({ email: "dup@example.com", passwordHash: "hashed2", fullName: "Dup User 2" })).rejects.toThrow();

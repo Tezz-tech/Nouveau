@@ -25,6 +25,7 @@ import CompleteStep from "@/pages/onboarding/steps/CompleteStep";
 // real weight that public marketing visitors shouldn't pay for on every
 // page load — only fetch it when someone actually navigates into it.
 const DashboardModule = lazy(() => import("@/pages/dashboard"));
+const AdminModule = lazy(() => import("@/pages/admin"));
 
 /** The public site's chrome (header/footer) — everything except the
  *  onboarding wizard, which is a focused task flow with its own layout and
@@ -77,6 +78,14 @@ export default function App() {
             element={
               <Suspense fallback={<div className="min-h-[100svh] bg-navy-deep p-6 text-body text-slate-light">Loading…</div>}>
                 <DashboardModule />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin/*"
+            element={
+              <Suspense fallback={<div className="min-h-[100svh] bg-navy-deep p-6 text-body text-slate-light">Loading…</div>}>
+                <AdminModule />
               </Suspense>
             }
           />

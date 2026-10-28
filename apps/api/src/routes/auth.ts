@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { User } from "@nouveau/db";
 import { asyncHandler } from "../middleware/errorHandler";
 import { authRateLimit } from "../middleware/rateLimit";
 import { signUp, logIn, requestPasswordReset, confirmPasswordReset } from "../services/authService";
@@ -34,7 +35,7 @@ export function createAuthRouter(emailAdapter: EmailAdapter, appBaseUrl: string)
       const { email, password, fullName } = signUpSchema.parse(req.body);
       const user = await signUp(email, password, fullName);
       req.session.userId = user.id;
-      res.status(201).json({ userId: user.id, email: user.email, flow: await getFlowStatus(user) });
+      res.status(201).json({ userId: user.id, email: user.email, role: user.role, flow: await getFlowStatus(user) });
     })
   );
 
@@ -45,7 +46,7 @@ export function createAuthRouter(emailAdapter: EmailAdapter, appBaseUrl: string)
       const { email, password } = logInSchema.parse(req.body);
       const user = await logIn(email, password);
       req.session.userId = user.id;
-      res.status(200).json({ userId: user.id, email: user.email, flow: await getFlowStatus(user) });
+      res.status(200).json({ userId: user.id, email: user.email, role: user.role, flow: await getFlowStatus(user) });
     })
   );
 
@@ -55,13 +56,24 @@ export function createAuthRouter(emailAdapter: EmailAdapter, appBaseUrl: string)
     });
   });
 
-  router.get("/session", (req, res) => {
-    if (!req.session.userId) {
-      res.status(200).json({ authenticated: false });
-      return;
-    }
-    res.status(200).json({ authenticated: true, userId: req.session.userId });
-  });
+  router.get(
+    "/session",
+    asyncHandler(async (req, res) => {
+      if (!req.session.userId) {
+        res.status(200).json({ authenticated: false });
+        return;
+      }
+      // A session can outlive the user it points at (e.g. deleted directly
+      // in the database) — treat that the same as logged out rather than
+      // 500ing or returning a role for a user that no longer exists.
+      const user = await User.findById(req.session.userId);
+      if (!user) {
+        res.status(200).json({ authenticated: false });
+        return;
+      }
+      res.status(200).json({ authenticated: true, userId: req.session.userId, role: user.role });
+    })
+  );
 
   router.post(
     "/password-reset/request",

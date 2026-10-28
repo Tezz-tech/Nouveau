@@ -19,6 +19,10 @@ const userSchema = new Schema(
      *  plan switch or resubscribe so Paystack doesn't get asked to create a
      *  duplicate customer record for the same person. */
     paystackCustomerCode: { type: String, required: false },
+    /** "admin" has no public, self-serve path to get here — see
+     *  scripts/promoteAdmin.ts. Never settable through any API request
+     *  body; routes/admin/* only ever read it via requireAdmin. */
+    role: { type: String, enum: ["user", "admin"], default: "user", required: true },
   },
   { timestamps: true }
 );

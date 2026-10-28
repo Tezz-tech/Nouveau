@@ -28,6 +28,23 @@ describe("MasterStrategy model", () => {
     ).rejects.toThrow();
   });
 
+  it("accepts the provisioning/failed states an admin-created strategy moves through, with a lastError", async () => {
+    const strategy = await MasterStrategy.create({
+      name: "Long Term",
+      description: "d",
+      metaApiAccountId: "acc-provisioning",
+      status: "provisioning",
+    });
+    expect(strategy.status).toBe("provisioning");
+
+    strategy.status = "failed";
+    strategy.lastError = { message: "wrong password", at: new Date() };
+    await strategy.save();
+    const found = await MasterStrategy.findById(strategy._id);
+    expect(found?.status).toBe("failed");
+    expect(found?.lastError?.message).toBe("wrong password");
+  });
+
   it("stores a copyFactoryStrategyConfig snapshot for idempotent diffing", async () => {
     const strategy = await MasterStrategy.create({
       name: "Day Trader",

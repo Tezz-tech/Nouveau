@@ -12,6 +12,9 @@ import { createSubscriptionRouter } from "./routes/subscription";
 import { createMtAccountRouter } from "./routes/mtAccount";
 import { createProfileRouter } from "./routes/profile";
 import { createPaystackWebhookRouter } from "./routes/webhooks/paystack";
+import { createAdminMasterStrategiesRouter } from "./routes/admin/masterStrategies";
+import { createAdminBotPlansRouter } from "./routes/admin/botPlans";
+import { createAdminUsersRouter } from "./routes/admin/users";
 import type { EmailAdapter } from "./adapters/email/EmailAdapter";
 import type { PaymentAdapter } from "./adapters/payment/PaymentAdapter";
 import type { CopyTradingAdapter } from "./adapters/copyTrading/CopyTradingAdapter";
@@ -68,6 +71,9 @@ export function createApp(deps: AppDependencies): Express {
   app.use("/subscription", createSubscriptionRouter(deps.paymentAdapter, deps.appBaseUrl));
   app.use("/mt-account", createMtAccountRouter(deps.copyTradingAdapter, deps.kmsProvider));
   app.use("/account", createProfileRouter());
+  app.use("/admin/master-strategies", createAdminMasterStrategiesRouter(deps.copyTradingAdapter));
+  app.use("/admin/bot-plans", createAdminBotPlansRouter());
+  app.use("/admin/users", createAdminUsersRouter());
 
   app.use(errorHandler);
 

@@ -25,7 +25,11 @@ var userSchema = new Schema(
     /** Set once, on first successful payment — reused across every later
      *  plan switch or resubscribe so Paystack doesn't get asked to create a
      *  duplicate customer record for the same person. */
-    paystackCustomerCode: { type: String, required: false }
+    paystackCustomerCode: { type: String, required: false },
+    /** "admin" has no public, self-serve path to get here — see
+     *  scripts/promoteAdmin.ts. Never settable through any API request
+     *  body; routes/admin/* only ever read it via requireAdmin. */
+    role: { type: String, enum: ["user", "admin"], default: "user", required: true }
   },
   { timestamps: true }
 );
@@ -50,6 +54,13 @@ var PasswordResetToken = model2("PasswordResetToken", passwordResetTokenSchema);
 
 // ../../packages/db/src/models/MasterStrategy.ts
 import { Schema as Schema3, model as model3 } from "mongoose";
+var lastErrorSchema = new Schema3(
+  {
+    message: { type: String, required: true },
+    at: { type: Date, required: true }
+  },
+  { _id: false }
+);
 var masterStrategySchema = new Schema3(
   {
     name: { type: String, required: true, trim: true },
@@ -61,7 +72,13 @@ var masterStrategySchema = new Schema3(
      *  lets the seed script diff against this instead of blindly
      *  re-pushing identical config on every run. */
     copyFactoryStrategyConfig: { type: Schema3.Types.Mixed, required: false },
-    status: { type: String, enum: ["active", "paused"], default: "active", required: true }
+    /** "provisioning" only applies to the admin-created, freshly-provisioned
+     *  path (an existing-MetaApi-account admin submission skips straight to
+     *  "active") — mirrors MtAccount's connectionStage/status split: this is
+     *  what an admin polls while MetaApi deploys/connects the new master
+     *  account and before the CopyFactory strategy is finalized. */
+    status: { type: String, enum: ["provisioning", "active", "paused", "failed"], default: "active", required: true },
+    lastError: { type: lastErrorSchema, required: false }
   },
   { timestamps: true }
 );
@@ -115,7 +132,7 @@ var consentSchema = new Schema5(
   },
   { _id: false }
 );
-var lastErrorSchema = new Schema5(
+var lastErrorSchema2 = new Schema5(
   {
     message: { type: String, required: true },
     at: { type: Date, required: true }
@@ -148,7 +165,7 @@ var mtAccountSchema = new Schema5(
       required: true,
       default: "deploying"
     },
-    lastError: { type: lastErrorSchema, required: false },
+    lastError: { type: lastErrorSchema2, required: false },
     consent: { type: consentSchema, required: true },
     status: { type: String, enum: ["pending", "linked", "error", "closed"], default: "pending", required: true }
   },
@@ -499,7 +516,7 @@ function createAuthRouter(emailAdapter, appBaseUrl) {
       const { email, password, fullName } = signUpSchema.parse(req.body);
       const user = await signUp(email, password, fullName);
       req.session.userId = user.id;
-      res.status(201).json({ userId: user.id, email: user.email, flow: await getFlowStatus(user) });
+      res.status(201).json({ userId: user.id, email: user.email, role: user.role, flow: await getFlowStatus(user) });
     })
   );
   router.post(
@@ -509,7 +526,7 @@ function createAuthRouter(emailAdapter, appBaseUrl) {
       const { email, password } = logInSchema.parse(req.body);
       const user = await logIn(email, password);
       req.session.userId = user.id;
-      res.status(200).json({ userId: user.id, email: user.email, flow: await getFlowStatus(user) });
+      res.status(200).json({ userId: user.id, email: user.email, role: user.role, flow: await getFlowStatus(user) });
     })
   );
   router.post("/logout", (req, res) => {
@@ -517,13 +534,21 @@ function createAuthRouter(emailAdapter, appBaseUrl) {
       res.status(204).end();
     });
   });
-  router.get("/session", (req, res) => {
-    if (!req.session.userId) {
-      res.status(200).json({ authenticated: false });
-      return;
-    }
-    res.status(200).json({ authenticated: true, userId: req.session.userId });
-  });
+  router.get(
+    "/session",
+    asyncHandler(async (req, res) => {
+      if (!req.session.userId) {
+        res.status(200).json({ authenticated: false });
+        return;
+      }
+      const user = await User.findById(req.session.userId);
+      if (!user) {
+        res.status(200).json({ authenticated: false });
+        return;
+      }
+      res.status(200).json({ authenticated: true, userId: req.session.userId, role: user.role });
+    })
+  );
   router.post(
     "/password-reset/request",
     authRateLimit,
@@ -919,6 +944,332 @@ function createPaystackWebhookRouter(paymentAdapter, copyTradingAdapter) {
   return router;
 }
 
+// src/routes/admin/masterStrategies.ts
+import { Router as Router7 } from "express";
+import { z as z5 } from "zod";
+
+// src/middleware/requireAdmin.ts
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== "admin") {
+    res.status(403).json({ error: "Admin access required." });
+    return;
+  }
+  next();
+}
+
+// src/services/adminMasterStrategyService.ts
+async function finalizeOrThrow502(copyTradingAdapter, input) {
+  try {
+    return await copyTradingAdapter.finalizeProviderStrategy(input);
+  } catch (err) {
+    throw new HttpError(502, `Could not finalize the CopyFactory strategy: ${err instanceof Error ? err.message : "unknown error"}`);
+  }
+}
+async function createMasterStrategy(input, copyTradingAdapter) {
+  if (input.existingMetaApiAccountId) {
+    const existing = await MasterStrategy.findOne({ metaApiAccountId: input.existingMetaApiAccountId });
+    if (existing) {
+      throw new HttpError(409, "A master strategy already exists for that MetaApi account.");
+    }
+    const result = await finalizeOrThrow502(copyTradingAdapter, {
+      metaApiAccountId: input.existingMetaApiAccountId,
+      name: input.name,
+      description: input.description,
+      maxTradeRiskPct: input.maxTradeRiskPct
+    });
+    return MasterStrategy.create({
+      name: input.name,
+      description: input.description,
+      metaApiAccountId: input.existingMetaApiAccountId,
+      copyFactoryStrategyId: result.copyFactoryStrategyId,
+      maxTradeRiskPct: input.maxTradeRiskPct,
+      copyFactoryStrategyConfig: result.appliedConfig,
+      status: "active"
+    });
+  }
+  if (!input.broker || !input.login || !input.serverName || !input.tradingPassword) {
+    throw new HttpError(400, "Provide either an existing MetaApi account id, or broker/login/serverName/tradingPassword to provision one.");
+  }
+  let metaApiAccountId;
+  try {
+    metaApiAccountId = (await copyTradingAdapter.createProviderAccount({
+      broker: input.broker,
+      login: input.login,
+      serverName: input.serverName,
+      tradingPassword: input.tradingPassword
+    })).metaApiAccountId;
+  } catch (err) {
+    throw new HttpError(502, `Could not create the master account: ${err instanceof Error ? err.message : "unknown error"}`);
+  }
+  return MasterStrategy.create({
+    name: input.name,
+    description: input.description,
+    metaApiAccountId,
+    maxTradeRiskPct: input.maxTradeRiskPct,
+    status: "provisioning"
+  });
+}
+async function syncProvisioning(strategy, copyTradingAdapter) {
+  if (strategy.status !== "provisioning") return strategy;
+  const result = await copyTradingAdapter.pollConnectionStatus(strategy.metaApiAccountId);
+  if (result.stage === "failed") {
+    strategy.status = "failed";
+    strategy.lastError = { message: result.errorMessage ?? "Connection failed.", at: /* @__PURE__ */ new Date() };
+    await strategy.save();
+    return strategy;
+  }
+  if (result.stage !== "connected") {
+    return strategy;
+  }
+  try {
+    const finalized = await copyTradingAdapter.finalizeProviderStrategy({
+      metaApiAccountId: strategy.metaApiAccountId,
+      name: strategy.name,
+      description: strategy.description,
+      maxTradeRiskPct: strategy.maxTradeRiskPct ?? void 0
+    });
+    strategy.copyFactoryStrategyId = finalized.copyFactoryStrategyId;
+    strategy.copyFactoryStrategyConfig = finalized.appliedConfig;
+    strategy.status = "active";
+  } catch (err) {
+    strategy.status = "failed";
+    strategy.lastError = { message: err instanceof Error ? err.message : "Could not finalize the CopyFactory strategy.", at: /* @__PURE__ */ new Date() };
+  }
+  await strategy.save();
+  return strategy;
+}
+function listMasterStrategies() {
+  return MasterStrategy.find().sort({ createdAt: -1 });
+}
+async function setMasterStrategyStatus(id, status) {
+  const strategy = await MasterStrategy.findById(id);
+  if (!strategy) throw new HttpError(404, "Master strategy not found.");
+  if (strategy.status === "provisioning" || strategy.status === "failed") {
+    throw new HttpError(409, `Cannot change status while the strategy is "${strategy.status}".`);
+  }
+  strategy.status = status;
+  await strategy.save();
+  return strategy;
+}
+
+// src/routes/admin/masterStrategies.ts
+var createSchema = z5.object({
+  name: z5.string().trim().min(1),
+  description: z5.string().trim().min(1),
+  maxTradeRiskPct: z5.number().positive().max(100).optional(),
+  existingMetaApiAccountId: z5.string().trim().min(1).optional(),
+  broker: z5.string().trim().min(1).optional(),
+  login: z5.string().trim().min(1).optional(),
+  serverName: z5.string().trim().min(1).optional(),
+  tradingPassword: z5.string().min(1).optional()
+}).refine((v) => Boolean(v.existingMetaApiAccountId) !== Boolean(v.broker && v.login && v.serverName && v.tradingPassword), {
+  message: "Provide exactly one of existingMetaApiAccountId, or the full broker/login/serverName/tradingPassword set."
+});
+var statusSchema = z5.object({ status: z5.enum(["active", "paused"]) });
+var paramsSchema = z5.object({ id: z5.string().min(1) });
+function serialize(strategy) {
+  return {
+    id: strategy._id.toString(),
+    name: strategy.name,
+    description: strategy.description,
+    metaApiAccountId: strategy.metaApiAccountId,
+    copyFactoryStrategyId: strategy.copyFactoryStrategyId ?? null,
+    maxTradeRiskPct: strategy.maxTradeRiskPct ?? null,
+    status: strategy.status,
+    lastError: strategy.lastError?.message ?? null
+  };
+}
+function createAdminMasterStrategiesRouter(copyTradingAdapter) {
+  const router = Router7();
+  router.use(requireAuth, requireAdmin);
+  router.get(
+    "/",
+    asyncHandler(async (_req, res) => {
+      const strategies = await listMasterStrategies();
+      res.status(200).json({ masterStrategies: strategies.map(serialize) });
+    })
+  );
+  router.post(
+    "/",
+    asyncHandler(async (req, res) => {
+      const input = createSchema.parse(req.body);
+      const strategy = await createMasterStrategy(input, copyTradingAdapter);
+      res.status(201).json(serialize(strategy));
+    })
+  );
+  router.get(
+    "/:id/status",
+    asyncHandler(async (req, res) => {
+      const { id } = paramsSchema.parse(req.params);
+      const strategy = await MasterStrategy.findById(id);
+      if (!strategy) throw new HttpError(404, "Master strategy not found.");
+      const synced = await syncProvisioning(strategy, copyTradingAdapter);
+      res.status(200).json(serialize(synced));
+    })
+  );
+  router.patch(
+    "/:id/status",
+    asyncHandler(async (req, res) => {
+      const { id } = paramsSchema.parse(req.params);
+      const { status } = statusSchema.parse(req.body);
+      const strategy = await setMasterStrategyStatus(id, status);
+      res.status(200).json(serialize(strategy));
+    })
+  );
+  return router;
+}
+
+// src/routes/admin/botPlans.ts
+import { Router as Router8 } from "express";
+import { z as z6 } from "zod";
+
+// src/services/adminBotPlanService.ts
+async function createBotPlan(input) {
+  const strategy = await MasterStrategy.findById(input.masterStrategyId);
+  if (!strategy) {
+    throw new HttpError(404, "That master strategy doesn't exist.");
+  }
+  return BotPlan.create({
+    name: input.name,
+    masterStrategyId: strategy._id,
+    priceCents: input.priceCents,
+    currency: input.currency,
+    interval: input.interval,
+    defaultMultiplier: input.defaultMultiplier
+  });
+}
+function listBotPlans() {
+  return BotPlan.find().sort({ createdAt: -1 });
+}
+async function setBotPlanStatus(id, status) {
+  const plan = await BotPlan.findById(id);
+  if (!plan) throw new HttpError(404, "Bot plan not found.");
+  plan.status = status;
+  await plan.save();
+  return plan;
+}
+
+// src/routes/admin/botPlans.ts
+var createSchema2 = z6.object({
+  name: z6.string().trim().min(1),
+  masterStrategyId: z6.string().trim().min(1),
+  priceCents: z6.string().regex(/^\d+$/, "priceCents must be a decimal-string integer."),
+  currency: z6.string().trim().length(3).optional(),
+  interval: z6.literal("monthly").optional(),
+  defaultMultiplier: z6.number().positive().optional()
+});
+var statusSchema2 = z6.object({ status: z6.enum(["active", "retired"]) });
+var paramsSchema2 = z6.object({ id: z6.string().min(1) });
+function serialize2(plan) {
+  return {
+    id: plan._id.toString(),
+    name: plan.name,
+    masterStrategyId: plan.masterStrategyId.toString(),
+    priceCents: plan.priceCents,
+    currency: plan.currency,
+    interval: plan.interval,
+    defaultMultiplier: plan.defaultMultiplier,
+    status: plan.status,
+    paystackPlanCode: plan.paystackPlanCode ?? null
+  };
+}
+function createAdminBotPlansRouter() {
+  const router = Router8();
+  router.use(requireAuth, requireAdmin);
+  router.get(
+    "/",
+    asyncHandler(async (_req, res) => {
+      const plans = await listBotPlans();
+      res.status(200).json({ botPlans: plans.map(serialize2) });
+    })
+  );
+  router.post(
+    "/",
+    asyncHandler(async (req, res) => {
+      const input = createSchema2.parse(req.body);
+      const plan = await createBotPlan(input);
+      res.status(201).json(serialize2(plan));
+    })
+  );
+  router.patch(
+    "/:id/status",
+    asyncHandler(async (req, res) => {
+      const { id } = paramsSchema2.parse(req.params);
+      const { status } = statusSchema2.parse(req.body);
+      const plan = await setBotPlanStatus(id, status);
+      res.status(200).json(serialize2(plan));
+    })
+  );
+  return router;
+}
+
+// src/routes/admin/users.ts
+import { Router as Router9 } from "express";
+import { z as z7 } from "zod";
+
+// src/services/adminUserActivityService.ts
+var PAGE_SIZE = 50;
+async function listUserActivity(page = 1) {
+  const skip = Math.max(0, page - 1) * PAGE_SIZE;
+  const [users, total] = await Promise.all([
+    User.find().sort({ createdAt: -1 }).skip(skip).limit(PAGE_SIZE),
+    User.countDocuments()
+  ]);
+  const userIds = users.map((u) => u._id);
+  const subscriptions = await BotSubscription.find({
+    userId: { $in: userIds },
+    status: { $in: ["awaiting_link", "active", "past_due"] }
+  }).sort({ createdAt: -1 });
+  const subByUser = /* @__PURE__ */ new Map();
+  for (const sub of subscriptions) {
+    const key = sub.userId.toString();
+    if (!subByUser.has(key)) subByUser.set(key, sub);
+  }
+  const strategyIds = [...subByUser.values()].map((s) => s.masterStrategyId);
+  const planIds = [...subByUser.values()].map((s) => s.botPlanId);
+  const mtAccountIds = [...subByUser.values()].map((s) => s.mtAccountId).filter((id) => Boolean(id));
+  const [strategies, plans, mtAccounts] = await Promise.all([
+    MasterStrategy.find({ _id: { $in: strategyIds } }),
+    BotPlan.find({ _id: { $in: planIds } }),
+    MtAccount.find({ _id: { $in: mtAccountIds } })
+  ]);
+  const strategyById = new Map(strategies.map((s) => [s._id.toString(), s]));
+  const planById = new Map(plans.map((p) => [p._id.toString(), p]));
+  const mtAccountById = new Map(mtAccounts.map((a) => [a._id.toString(), a]));
+  const rows = users.map((user) => {
+    const sub = subByUser.get(user._id.toString());
+    const strategy = sub ? strategyById.get(sub.masterStrategyId.toString()) : void 0;
+    const plan = sub ? planById.get(sub.botPlanId.toString()) : void 0;
+    const mtAccount = sub?.mtAccountId ? mtAccountById.get(sub.mtAccountId.toString()) : void 0;
+    return {
+      userId: user._id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+      memberSince: user.get("createdAt").toISOString(),
+      role: user.role,
+      subscription: sub && strategy && plan ? { botName: strategy.name, planName: plan.name, status: sub.status } : null,
+      mtAccount: mtAccount ? { broker: mtAccount.broker, status: mtAccount.status, connectionStage: mtAccount.connectionStage } : null
+    };
+  });
+  return { users: rows, total };
+}
+
+// src/routes/admin/users.ts
+var querySchema = z7.object({ page: z7.coerce.number().int().positive().optional() });
+function createAdminUsersRouter() {
+  const router = Router9();
+  router.use(requireAuth, requireAdmin);
+  router.get(
+    "/",
+    asyncHandler(async (req, res) => {
+      const { page } = querySchema.parse(req.query);
+      const result = await listUserActivity(page);
+      res.status(200).json(result);
+    })
+  );
+  return router;
+}
+
 // src/app.ts
 function createApp(deps) {
   const env2 = getEnv();
@@ -954,6 +1305,9 @@ function createApp(deps) {
   app2.use("/subscription", createSubscriptionRouter(deps.paymentAdapter, deps.appBaseUrl));
   app2.use("/mt-account", createMtAccountRouter(deps.copyTradingAdapter, deps.kmsProvider));
   app2.use("/account", createProfileRouter());
+  app2.use("/admin/master-strategies", createAdminMasterStrategiesRouter(deps.copyTradingAdapter));
+  app2.use("/admin/bot-plans", createAdminBotPlansRouter());
+  app2.use("/admin/users", createAdminUsersRouter());
   app2.use(errorHandler);
   return app2;
 }
@@ -1182,16 +1536,37 @@ var MetaApiCopyTradingAdapter = class {
       await account.waitConnected();
       metaApiAccountId = account.id;
     }
+    const result = await this.finalizeProviderStrategy({
+      metaApiAccountId,
+      name: input.name,
+      description: input.description,
+      maxTradeRiskPct: input.maxTradeRiskPct
+    });
+    return { metaApiAccountId, ...result };
+  }
+  async createProviderAccount(input) {
+    const account = await this.createAccount({
+      name: `master-${input.login}-${Date.now()}`,
+      broker: input.broker,
+      login: input.login,
+      serverName: input.serverName,
+      password: input.tradingPassword,
+      role: "PROVIDER"
+    });
+    await account.deploy();
+    return { metaApiAccountId: account.id };
+  }
+  async finalizeProviderStrategy(input) {
     const { id: copyFactoryStrategyId } = await this.copyFactory.configurationApi.generateStrategyId();
     const strategyConfig = {
       name: input.name,
       description: input.description,
-      accountId: metaApiAccountId,
+      accountId: input.metaApiAccountId,
       // CopyFactory expresses this as a fraction of 1, not a percentage.
       maxTradeRisk: input.maxTradeRiskPct !== void 0 ? input.maxTradeRiskPct / 100 : void 0
     };
     await this.copyFactory.configurationApi.updateStrategy(copyFactoryStrategyId, strategyConfig);
-    return { metaApiAccountId, copyFactoryStrategyId, appliedConfig: strategyConfig };
+    return { copyFactoryStrategyId, appliedConfig: strategyConfig };
   }
   async createAccount(input) {
     const profile = await this.findOrCreateProvisioningProfile(input.serverName);
@@ -1234,6 +1609,12 @@ var NotConfiguredCopyTradingAdapter = class {
     throw new HttpError(503, MESSAGE2);
   }
   async ensureProviderStrategy(_input) {
+    throw new HttpError(503, MESSAGE2);
+  }
+  async createProviderAccount(_input) {
+    throw new HttpError(503, MESSAGE2);
+  }
+  async finalizeProviderStrategy(_input) {
     throw new HttpError(503, MESSAGE2);
   }
 };

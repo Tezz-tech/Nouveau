@@ -82,6 +82,19 @@ that's how CopyFactory is meant to be used, so there's no separate "switch"
 endpoint), **Profile** (account + bot + linked-account summary — never a
 credential).
 
+**Admin** (`/admin/*`, `AdminLayout.tsx`) — only reachable if `role` on the
+session is `"admin"` (set via `apps/api/scripts/promoteAdmin.ts`, no
+public path to it); redirects away otherwise, though the real boundary is
+server-side (`requireAdmin`, 403). An "Admin" link appears in the dashboard
+sidebar only for admins. **Master Strategies** — add a bot either by
+pointing at an account already set up in MetaApi, or by giving its broker
+login directly (used once, never stored); a freshly-provisioned one polls
+its own connection status the same way the user-facing linking wizard
+does. **Bot Plans** — pricing tied to a master strategy; retiring one
+leaves subscribers untouched. **Users** — read-only activity: every
+signup, their current bot, subscription status, and linked-account
+connection status, paginated.
+
 ## Deploying to Vercel
 
 See the root README for the monorepo layout. Static Vite build; set

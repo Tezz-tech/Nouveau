@@ -6,6 +6,9 @@ import type {
   ConnectionStatusResult,
   EnsureProviderStrategyInput,
   EnsureProviderStrategyResult,
+  CreateProviderAccountInput,
+  FinalizeProviderStrategyInput,
+  FinalizeProviderStrategyResult,
 } from "./CopyTradingAdapter";
 
 const MESSAGE = "MetaApi isn't configured yet — set META_API_TOKEN in apps/api/.env to enable bot linking.";
@@ -34,6 +37,14 @@ export class NotConfiguredCopyTradingAdapter implements CopyTradingAdapter {
   }
 
   async ensureProviderStrategy(_input: EnsureProviderStrategyInput): Promise<EnsureProviderStrategyResult> {
+    throw new HttpError(503, MESSAGE);
+  }
+
+  async createProviderAccount(_input: CreateProviderAccountInput): Promise<LinkSubscriberAccountResult> {
+    throw new HttpError(503, MESSAGE);
+  }
+
+  async finalizeProviderStrategy(_input: FinalizeProviderStrategyInput): Promise<FinalizeProviderStrategyResult> {
     throw new HttpError(503, MESSAGE);
   }
 }

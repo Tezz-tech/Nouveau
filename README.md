@@ -40,7 +40,7 @@ packages/
 ```bash
 npm install
 npm run dev -w @nouveau/marketing     # http://localhost:5173
-npm run dev -w @nouveau/api           # http://localhost:4000 — needs MongoDB + real META_API_TOKEN/PAYSTACK_SECRET_KEY
+npm run dev -w @nouveau/api           # http://localhost:4000 — needs MongoDB; META_API_TOKEN/PAYSTACK_SECRET_KEY optional (auth/bots/dashboard work without them, checkout/linking need them)
 npm test -w @nouveau/api              # integration tests against fakes, no real credentials needed
 ```
 
@@ -67,9 +67,11 @@ npm test -w @nouveau/api              # integration tests against fakes, no real
   (29 passing integration tests cover the full signup→pay→link→copy
   path); not yet exercised against live vendor credentials — see
   `apps/api/README.md`'s "Assumptions flagged" for exactly what's needed.
-- **Master accounts (bots)** are not self-serve — seeded by
-  `apps/api/scripts/seedMasterStrategies.ts` from real account details,
-  not an admin UI, by explicit choice for now.
+- **Admin UI** (2026-10-28, `/admin/*`) — link bots to master accounts
+  and monitor user/subscription/linking activity. Gated by `User.role`,
+  which has no public path to `"admin"` — see `apps/api/scripts/
+  promoteAdmin.ts`. `scripts/seedMasterStrategies.ts` still exists for
+  bulk/offline setup.
 
 ## A note on scope
 

@@ -38,10 +38,12 @@ npm test -w @nouveau/api        # integration tests against mongodb-memory-serve
 
 ## Data model (`@nouveau/db`)
 
-- **`MasterStrategy`** — one per bot. Seeded by `scripts/
-  seedMasterStrategies.ts`, not an in-app admin UI (client's explicit
-  choice for now). A master account's own MT5 credentials are used once by
-  that script and never persisted anywhere.
+- **`User.role`** — `"user"` (default) or `"admin"`. No API endpoint or UI
+  flow can set this — see "Admin" below.
+- **`MasterStrategy`** — one per bot. Created via `/admin/master-strategies`
+  (the normal path now) or `scripts/seedMasterStrategies.ts` (still useful
+  for bulk/offline setup). A master account's own MT5 credentials are used
+  once at creation time and never persisted anywhere.
 - **`BotPlan`** — a purchasable plan tied to one `MasterStrategy`.
   `priceCents` is a decimal string (this codebase's established money
   convention — see `@nouveau/core`'s `Cents`/`cents()`), never a native
@@ -94,6 +96,40 @@ Each master account is a CopyFactory *strategy* (`generateStrategyId` +
 the chosen `strategyId` + risk multiplier). Switching bots is just another
 `updateSubscriber` call with a different `strategyId` — confirmed this is
 exactly how CopyFactory is designed to be used, not a workaround.
+
+## Admin
+
+`User.role` is the only gate — `"admin"` has no public, self-serve path to
+get there (no signup field, no API endpoint can set it). The only way:
+
+```bash
+npx tsx scripts/promoteAdmin.ts someone@example.com
+```
+
+run locally, by someone who already has direct database access. Every
+`/admin/*` route sits behind `requireAuth` + `requireAdmin` (401 if not
+logged in, 403 if logged in but not an admin).
+
+- **`/admin/master-strategies`** — `GET` to list, `POST` to create.
+  Creating takes either `existingMetaApiAccountId` (an account already set
+  up directly in the MetaApi dashboard — finalizes the CopyFactory strategy
+  immediately, fast, no deploy/connect wait) or the full
+  `broker`/`login`/`serverName`/`tradingPassword` set (provisions a fresh
+  MetaApi account — returns immediately with `status: "provisioning"`,
+  same non-blocking discipline as user-facing linking;
+  `GET /admin/master-strategies/:id/status` polls and finalizes once
+  connected). `PATCH /:id/status` pauses/reactivates — not available while
+  `provisioning`/`failed`.
+- **`/admin/bot-plans`** — `GET` to list, `POST` to create (tied to a
+  `MasterStrategy`), `PATCH /:id/status` to retire/reactivate. Deliberately
+  no price-editing endpoint — see `adminBotPlanService.ts`'s own comment on
+  why repricing a plan subscribers already bought is a hazard, not just an
+  API-design choice.
+- **`/admin/users`** — `GET`, paginated (50/page), one row per user: email,
+  name, member-since, role, current bot + subscription status, linked MT5
+  account + connection status. Read-only; batches its lookups (one query
+  per collection, not one per user) since this is the one admin list
+  expected to actually grow.
 
 ## MetaApi/CopyFactory packaging gotchas (read before touching the adapters)
 
@@ -149,10 +185,9 @@ imports).
    adapter this time.** Real compliance review may matter later given this
    now places real automated trades on a user's own account, but isn't
    built today.
-2. **Master accounts are not self-serve.** `scripts/seedMasterStrategies.ts`
-   needs real MT5/MetaApi details filled in by hand per master account —
-   confirmed with the client as the intended process for now, not a
-   shortcut.
+2. **Master accounts are now admin-self-serve** (`/admin/master-strategies`,
+   2026-10-28) — `scripts/seedMasterStrategies.ts` still exists for
+   bulk/offline setup but is no longer the only path.
 3. **A brand-new MetaApi provisioning profile only reaches "active" status
    once the broker's `servers.dat` (MT5) file is uploaded to it** — a
    manual, broker-specific step neither the linking flow nor the seed

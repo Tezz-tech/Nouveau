@@ -29,6 +29,9 @@ import type {
   ConnectionStatusResult,
   EnsureProviderStrategyInput,
   EnsureProviderStrategyResult,
+  CreateProviderAccountInput,
+  FinalizeProviderStrategyInput,
+  FinalizeProviderStrategyResult,
 } from "./CopyTradingAdapter";
 
 /**
@@ -125,17 +128,44 @@ export class MetaApiCopyTradingAdapter implements CopyTradingAdapter {
       metaApiAccountId = account.id;
     }
 
+    const result = await this.finalizeProviderStrategy({
+      metaApiAccountId,
+      name: input.name,
+      description: input.description,
+      maxTradeRiskPct: input.maxTradeRiskPct,
+    });
+    return { metaApiAccountId, ...result };
+  }
+
+  async createProviderAccount(input: CreateProviderAccountInput): Promise<LinkSubscriberAccountResult> {
+    const account = await this.createAccount({
+      name: `master-${input.login}-${Date.now()}`,
+      broker: input.broker,
+      login: input.login,
+      serverName: input.serverName,
+      password: input.tradingPassword,
+      role: "PROVIDER",
+    });
+    await account.deploy();
+    // Deliberately NOT awaiting waitConnected() — same non-blocking
+    // contract as linkSubscriberAccount, so an admin HTTP request never
+    // blocks on MetaApi's real deploy/connect time. The caller
+    // (adminMasterStrategyService) polls pollConnectionStatus, then calls
+    // finalizeProviderStrategy once connected.
+    return { metaApiAccountId: account.id };
+  }
+
+  async finalizeProviderStrategy(input: FinalizeProviderStrategyInput): Promise<FinalizeProviderStrategyResult> {
     const { id: copyFactoryStrategyId } = await this.copyFactory.configurationApi.generateStrategyId();
     const strategyConfig = {
       name: input.name,
       description: input.description,
-      accountId: metaApiAccountId,
+      accountId: input.metaApiAccountId,
       // CopyFactory expresses this as a fraction of 1, not a percentage.
       maxTradeRisk: input.maxTradeRiskPct !== undefined ? input.maxTradeRiskPct / 100 : undefined,
     };
     await this.copyFactory.configurationApi.updateStrategy(copyFactoryStrategyId, strategyConfig);
-
-    return { metaApiAccountId, copyFactoryStrategyId, appliedConfig: strategyConfig };
+    return { copyFactoryStrategyId, appliedConfig: strategyConfig };
   }
 
   private async createAccount(input: {

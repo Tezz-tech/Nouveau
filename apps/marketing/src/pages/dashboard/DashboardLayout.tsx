@@ -71,7 +71,7 @@ function MobileNavLink({ item }: { item: NavItem }) {
 }
 
 export default function DashboardLayout() {
-  const { loading, authenticated, logout } = useAuth();
+  const { loading, authenticated, role, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -98,6 +98,15 @@ export default function DashboardLayout() {
             <DesktopNavLink key={item.to} item={item} />
           ))}
         </nav>
+        {role === "admin" && (
+          <Link
+            to="/admin"
+            className="mx-2 mb-2 flex items-center gap-3 border border-gold/30 px-4 py-2.5 text-small text-gold transition-colors duration-200 hover:bg-gold/10"
+          >
+            <Icon name="target" size={16} strokeWidth={1.75} />
+            Admin
+          </Link>
+        )}
         <button
           type="button"
           onClick={onLogout}
