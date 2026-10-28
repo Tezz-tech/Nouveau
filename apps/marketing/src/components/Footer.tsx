@@ -38,10 +38,7 @@ export default function Footer() {
           </p>
         </div>
 
-        <p className="mt-10 text-caption text-slate-light">
-          © {new Date().getFullYear()} Nouveau. This site is a design
-          demonstration; no forms submit and no accounts are created.
-        </p>
+        <p className="mt-10 text-caption text-slate-light">© {new Date().getFullYear()} Nouveau.</p>
       </Container>
     </footer>
   );
